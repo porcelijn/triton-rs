@@ -1,5 +1,6 @@
 mod backend;
 mod model;
+mod model_instance;
 mod request;
 mod model_executor;
 mod error;
@@ -8,6 +9,7 @@ mod inference_response;
 
 pub use backend::Backend;
 pub use model::Model;
+pub use model_instance::ModelInstance;
 pub use request::Request;
 pub use triton_sys as sys;
 pub use model_executor::TritonModelExecuter;

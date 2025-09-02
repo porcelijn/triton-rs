@@ -60,7 +60,7 @@ pub trait Backend {
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceExecute.
     fn model_instance_execute(
-        model: super::Model,
+        model_instance: super::ModelInstance,
         requests: &[super::Request],
     ) -> Result<(), Error>;
 }
@@ -134,22 +134,14 @@ macro_rules! declare_backend {
             requests: *const *mut triton_rs::sys::TRITONBACKEND_Request,
             request_count: u32,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            let mut model: *mut triton_rs::sys::TRITONBACKEND_Model = ptr::null_mut();
-            let err =
-                unsafe { triton_rs::sys::TRITONBACKEND_ModelInstanceModel(instance, &mut model) };
-            if !err.is_null() {
-                return err;
-            }
+                let instance = triton_rs::ModelInstance::from_ptr(instance);
+                let requests = unsafe { slice::from_raw_parts(requests, request_count as usize) };
+                let requests = requests
+                    .iter()
+                    .map(|req| triton_rs::Request::from_ptr(*req))
+                    .collect::<Vec<triton_rs::Request>>();
 
-            let model = triton_rs::Model::from_ptr(model);
-
-            let requests = unsafe { slice::from_raw_parts(requests, request_count as usize) };
-            let requests = requests
-                .iter()
-                .map(|req| triton_rs::Request::from_ptr(*req))
-                .collect::<Vec<triton_rs::Request>>();
-
-            triton_rs::call_checked!($class::model_instance_execute(model, &requests))
+            triton_rs::call_checked!($class::model_instance_execute(instance, &requests))
         }
     };
 }

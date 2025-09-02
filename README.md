@@ -13,7 +13,7 @@ struct ExampleBackend;
 
 impl Backend for ExampleBackend {
     fn model_instance_execute(
-        model: triton_rs::Model,
+        model_instance: triton_rs::ModelInstance,
         requests: &[triton_rs::Request],
     ) -> Result<(), triton_rs::Error> {
 

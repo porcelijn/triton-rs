@@ -67,7 +67,7 @@ impl InferenceRequest {
     pub fn set_input_data(
         &self,
         name: &str,
-        data: &Vec<u8>,
+        data: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
         let cstr_name = CString::new(name)?;
         let c_data_ptr = data.as_ptr() as *const std::os::raw::c_void;
@@ -77,7 +77,7 @@ impl InferenceRequest {
                 self.ptr,
                 cstr_name.as_ptr(),
                 c_data_ptr,
-                data.len() as usize,
+                data.len(),
                 triton_sys::TRITONSERVER_memorytype_enum_TRITONSERVER_MEMORY_CPU,
                 data_memory_id as i64,
             )

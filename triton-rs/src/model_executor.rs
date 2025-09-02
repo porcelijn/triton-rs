@@ -3,7 +3,6 @@
 use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
-use std::sync::Arc;
 // use async_trait::async_trait;
 use crate::error::ModelExecuterError;
 use crate::{InferenceRequest, dump_err};
@@ -28,7 +27,7 @@ impl Drop for TritonModelExecuter {
         unsafe {
             // Clean up allocator when executor is dropped
             if !self.allocator.is_null() {
-                Box::from_raw(self.allocator);
+                drop(Box::from_raw(self.allocator));
             }
         }
     }
@@ -106,7 +105,7 @@ impl TritonModelExecuter {
 // FFI callback functions
 extern "C" fn infer_response_complete(
     response: *mut triton_sys::TRITONSERVER_InferenceResponse,
-    flags: u32,
+    _flags: u32,
     userp: *mut c_void,
 ) {
     if !response.is_null() {
@@ -120,12 +119,12 @@ extern "C" fn infer_response_complete(
 }
 
 extern "C" fn response_alloc(
-    allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
+    _allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
     tensor_name: *const libc::c_char,
     byte_size: libc::size_t,
     preferred_memory_type: triton_sys::TRITONSERVER_MemoryType,
     preferred_memory_type_id: i64,
-    userp: *mut c_void,
+    _userp: *mut c_void,
     buffer: *mut *mut c_void,
     buffer_userp: *mut *mut c_void,
     actual_memory_type: *mut triton_sys::TRITONSERVER_MemoryType,
@@ -149,9 +148,7 @@ extern "C" fn response_alloc(
         if !allocated_ptr.is_null() {
             *buffer = allocated_ptr;
             *buffer_userp = Box::into_raw(Box::new(CString::from_vec_unchecked(
-                unsafe { std::ffi::CStr::from_ptr(tensor_name) }
-                    .to_bytes()
-                    .to_vec(),
+                std::ffi::CStr::from_ptr(tensor_name).to_bytes().to_vec(),
             ))) as *mut c_void;
         }
 
@@ -160,12 +157,12 @@ extern "C" fn response_alloc(
 }
 
 extern "C" fn response_release(
-    allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
+    _allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
     buffer: *mut c_void,
     buffer_userp: *mut c_void,
-    byte_size: libc::size_t,
+    _byte_size: libc::size_t,
     memory_type: triton_sys::TRITONSERVER_MemoryType,
-    memory_type_id: i64,
+    _memory_type_id: i64,
 ) -> *mut triton_sys::TRITONSERVER_Error {
     unsafe {
         if !buffer.is_null() {
@@ -183,13 +180,6 @@ extern "C" fn response_release(
 
         ptr::null_mut() // Success
     }
-}
-
-pub fn new_executer(
-    server: *mut triton_sys::TRITONSERVER_Server,
-) -> Result<Arc<TritonModelExecuter>, ModelExecuterError> {
-    let executor = TritonModelExecuter::new(server)?;
-    Ok(Arc::new(executor))
 }
 
 #[cfg(test)]

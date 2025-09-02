@@ -26,10 +26,12 @@ struct ExampleBackend;
 
 impl Backend for ExampleBackend {
     fn model_instance_execute(
-        model: triton_rs::Model,
+        model_instance: triton_rs::ModelInstance,
         requests: &[triton_rs::Request],
     ) -> Result<(), triton_rs::Error> {
         println!("[EXAMPLE] model_instance_execute");
+
+        let model = model_instance.model()?;
 
         println!("[EXAMPLE] model config: {:?}", model.model_config()?);
 
@@ -83,7 +85,7 @@ impl Backend for ExampleBackend {
             let response_tmp = block_on(executor.execute(&inference_request))?;
 
             // executor.execute(&inference_request).await.map_err(|e| {
-            //     // 自定义错误处理逻辑
+            //     // Custom error handling logic
             //     triton_rs::ModelExecuterError::ExecutionError(e)
             // })?;
             let infer_response = triton_rs::InferenceResponse::from_ptr(response_tmp);

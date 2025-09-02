@@ -11,8 +11,6 @@ fn main() {
         return;
     }
 
-    // println!("cargo:rustc-link-search=/opt/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc/usr/lib");
-    // println!("cargo:include=/opt/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc/usr/include/");
     let bindings = bindgen::Builder::default()
         .clang_arg("-Ideps/core/include")
         .clang_arg("-I/opt/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc/usr/include/")
@@ -23,10 +21,5 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
-    // let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    // bindings
-    //     .write_to_file(out_path.join("bindings.rs"))
-    //     .expect("Couldn't write bindings!");
-
-    bindings.write_to_file(target_path).expect("写入失败");
+    bindings.write_to_file(target_path).expect("Write failed");
 }

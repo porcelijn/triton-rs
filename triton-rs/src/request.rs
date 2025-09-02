@@ -87,23 +87,29 @@ impl Input {
 
     pub fn as_string(&self) -> Result<String, Error> {
         let properties = self.properties()?;
+        if properties.datatype != DataType::BYTES {
+            return Err(format!("DataType does not match String {properties:?}").into());
+        }
         let buffer = self.buffer()?;
-
         let strings = decode_string(&buffer)?;
         Ok(strings.first().unwrap().clone())
     }
 
     pub fn as_u64(&self) -> Result<u64, Error> {
         let properties = self.properties()?;
+        if properties.datatype != DataType::UINT64 {
+            return Err(format!("DataType does not match u64 {properties:?}").into());
+        }
+        if properties.byte_size < 8 {
+            return Err("Buffer too small".into())
+        }
         let buffer = self.buffer()?;
-
         let mut bytes = [0u8; 8];
         bytes.copy_from_slice(&buffer);
-
         Ok(u64::from_le_bytes(bytes))
     }
 
-    fn properties(&self) -> Result<InputProperties, Error> {
+    pub fn properties(&self) -> Result<InputProperties, Error> {
         let mut name = ptr::null();
         let mut datatype = 0u32;
         let shape = ptr::null_mut();
@@ -125,6 +131,7 @@ impl Input {
 
         let name: &CStr = unsafe { CStr::from_ptr(name) };
         let name = name.to_string_lossy().to_string();
+        let datatype: DataType = datatype.into();
 
         Ok(InputProperties {
             name,
@@ -139,10 +146,52 @@ impl Input {
 
 #[derive(Debug)]
 pub struct InputProperties {
-    name: String,
-    datatype: u32,
+    #[allow(unused)] name: String,
+    datatype: DataType,
     // shape: Vec<i64>,
-    dims_count: u32,
+    #[allow(unused)] dims_count: u32,
     byte_size: u64,
-    buffer_count: u32,
+    #[allow(unused)] buffer_count: u32,
 }
+
+#[derive(Debug,PartialEq)]
+pub enum DataType {
+    INVALID = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INVALID as isize,
+    BOOL = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BOOL as isize,
+    UINT8 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT8 as isize,
+    UINT16 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT16 as isize,
+    UINT32 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT32 as isize,
+    UINT64 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT64 as isize,
+    INT8 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT8 as isize,
+    INT16 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT16 as isize,
+    INT32 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT32 as isize,
+    INT64 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT64 as isize,
+    FP16 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP16 as isize,
+    FP32 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP32 as isize,
+    FP64 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP64 as isize,
+    BYTES = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BYTES as isize,
+    BF16 = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BF16 as isize,
+}
+
+impl From<u32> for DataType {
+    fn from(v: u32) -> DataType {
+        match v {
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BOOL => Self::BOOL,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT8 => Self::UINT8,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT16 => Self::UINT16,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT32 => Self::UINT32,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_UINT64 => Self::UINT64,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT8 => Self::INT8,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT16 => Self::INT16,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT32 => Self::INT32,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_INT64 => Self::INT64,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP16 => Self::FP16,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP32 => Self::FP32,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP64 => Self::FP64,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BYTES => Self::BYTES,
+            triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BF16 => Self::BF16,
+            _ => Self::INVALID,
+        }
+    }
+}
+
