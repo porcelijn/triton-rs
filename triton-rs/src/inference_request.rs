@@ -20,17 +20,16 @@ impl InferenceRequest {
         model_version: i64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let cstr_model_name = CString::new(model_name)?;
-        unsafe {
-            let mut request: *mut triton_sys::TRITONSERVER_InferenceRequest = std::ptr::null_mut();
+        let mut request: *mut triton_sys::TRITONSERVER_InferenceRequest = std::ptr::null_mut();
+        check_err(unsafe {
             triton_sys::TRITONSERVER_InferenceRequestNew(
                 &mut request,
                 server,
                 cstr_model_name.as_ptr(),
                 model_version,
-            );
-
-            Ok(Self { ptr: request })
-        }
+            )
+        })?;
+        Ok(Self { ptr: request })
     }
 
     pub fn add_output(&self, name: &str) -> Result<(), Box<dyn std::error::Error>> {

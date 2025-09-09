@@ -1,6 +1,6 @@
 use super::Error;
 
-pub trait Backend {
+pub trait Backend<S: Default> {
     /// Initialize a backend. This function is optional, a backend is not
     /// required to implement it. This function is called once when a
     /// backend is loaded to allow the backend to initialize any state
@@ -28,7 +28,9 @@ pub trait Backend {
     /// initialize any state associated with the instance.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceInitialize.
-    fn model_instance_initialize() -> Result<(), Error> {
+    fn model_instance_initialize(model_instance: super::ModelInstance<S>) -> Result<(), Error> {
+        let previous = model_instance.replace_state(Some(S::default()))?;
+        assert!(previous.is_none());
         Ok(())
     }
 
@@ -40,7 +42,9 @@ pub trait Backend {
     /// exited/joined before returning from this function.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceFinalize.
-    fn model_instance_finalize() -> Result<(), Error> {
+    fn model_instance_finalize(model_instance: super::ModelInstance<S>) -> Result<(), Error> {
+        let previous = model_instance.replace_state(None)?;
+        assert!(previous.is_some());
         Ok(())
     }
 
@@ -60,7 +64,7 @@ pub trait Backend {
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceExecute.
     fn model_instance_execute(
-        model_instance: super::ModelInstance,
+        model_instance: super::ModelInstance<S>,
         requests: &[super::Request],
     ) -> Result<(), Error>;
 }
@@ -118,14 +122,16 @@ macro_rules! declare_backend {
         extern "C" fn TRITONBACKEND_ModelInstanceInitialize(
             instance: *mut triton_rs::sys::TRITONBACKEND_ModelInstance,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            triton_rs::call_checked!($class::model_instance_initialize())
+            let mut instance = triton_rs::ModelInstance::from_ptr(instance);
+            triton_rs::call_checked!($class::model_instance_initialize(instance))
         }
 
         #[no_mangle]
         extern "C" fn TRITONBACKEND_ModelInstanceFinalize(
-            instance: *const triton_rs::sys::TRITONBACKEND_ModelInstance,
+            instance: *mut triton_rs::sys::TRITONBACKEND_ModelInstance,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            triton_rs::call_checked!($class::model_instance_finalize())
+            let mut instance = triton_rs::ModelInstance::from_ptr(instance);
+            triton_rs::call_checked!($class::model_instance_finalize(instance))
         }
 
         #[no_mangle]

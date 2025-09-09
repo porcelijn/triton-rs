@@ -22,14 +22,26 @@ pub(crate) fn check_err(err: *mut triton_sys::TRITONSERVER_Error) -> Result<(), 
     }
 }
 
+#[derive(Debug, Default)]
+struct InstanceState(usize);
+
+impl InstanceState {
+    fn change(&mut self) {
+         self.0 += 1; // do stuff
+    }
+}
+
 struct ExampleBackend;
 
-impl Backend for ExampleBackend {
+impl Backend<InstanceState> for ExampleBackend {
+
     fn model_instance_execute(
-        model_instance: triton_rs::ModelInstance,
+        model_instance: triton_rs::ModelInstance<InstanceState>,
         requests: &[triton_rs::Request],
     ) -> Result<(), triton_rs::Error> {
-        println!("[EXAMPLE] model_instance_execute");
+        let state: &mut InstanceState = model_instance.state()?;
+        state.change();
+        println!("[EXAMPLE] model_instance_execute ({state:?}");
 
         let model = model_instance.model()?;
 
