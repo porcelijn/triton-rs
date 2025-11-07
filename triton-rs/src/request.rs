@@ -39,16 +39,24 @@ impl Request {
         })?;
 
         unsafe {
-            Ok(CStr::from_ptr(id_ptr).to_string_lossy().into_owned()) 
+            Ok(CStr::from_ptr(id_ptr).to_string_lossy().into_owned())
         }
     }
-    
+
     pub fn get_correlation_id(&self) -> Result<u64, Error> {
         let mut id: u64 = 0;
         check_err(unsafe {
             triton_sys::TRITONBACKEND_RequestCorrelationId(self.ptr, &mut id)
         })?;
         Ok(id)
+    }
+
+    pub fn get_flags(&self) -> Result<Flags, Error> {
+        let mut flags: u32 = 0;
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_RequestFlags(self.ptr, &mut flags)
+        })?;
+        Ok(Flags::from(flags))
     }
 }
 
@@ -195,3 +203,22 @@ impl From<u32> for DataType {
     }
 }
 
+#[derive(Debug,PartialEq)]
+pub struct Flags(u32);
+
+impl Flags {
+    pub fn is_start(&self) -> bool {
+        return self.0 & triton_sys::tritonserver_requestflag_enum_TRITONSERVER_REQUEST_FLAG_SEQUENCE_START != 0
+    }
+
+    pub fn is_end(&self) -> bool {
+        return self.0 & triton_sys::tritonserver_requestflag_enum_TRITONSERVER_REQUEST_FLAG_SEQUENCE_END != 0;
+    }
+
+}
+
+impl From<u32> for Flags {
+    fn from(v: u32) -> Flags {
+        Flags(v)
+    }
+}

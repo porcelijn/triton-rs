@@ -11,7 +11,7 @@ pub struct Model {
 }
 
 impl Model {
-    
+
     pub fn get_server(&self) -> Result<*mut triton_sys::TRITONSERVER_Server, Error> {
         let mut server: *mut triton_sys::TRITONSERVER_Server = ptr::null_mut();
         check_err(unsafe { triton_sys::TRITONBACKEND_ModelServer(self.ptr, &mut server) })?;
@@ -73,27 +73,27 @@ impl Model {
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ModelConfig(self.ptr, config_version, &mut msg)
         })?;
-    
+
         if msg.is_null() {
             return Err("Failed to get the message pointer".into());
         }
-    
+
         // second step: call TRITONSERVER_MessageSerializeToJson c func, get json string from base and byte_size
         let mut base: *const libc::c_char = std::ptr::null();
         let mut byte_size: size_t = 0;
         check_err(unsafe {
             triton_sys::TRITONSERVER_MessageSerializeToJson(msg, &mut base, &mut byte_size)
         })?;
-    
+
         if base.is_null() || byte_size == 0 {
             return Err("Failed to serialize the message to JSON".into());
         }
-    
+
         // Convert C char array to Rust String
         let json_str = unsafe {
             std::ffi::CStr::from_ptr(base).to_string_lossy().into_owned()
         };
-    
+
         Ok(json_str)
     }
 }
