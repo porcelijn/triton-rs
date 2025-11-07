@@ -68,7 +68,7 @@ impl Input {
         Self { ptr }
     }
 
-    fn buffer(&self) -> Result<Vec<u8>, Error> {
+    pub fn slice<T>(&self) -> Result<&[T], Error> {
         let mut buffer: *const c_void = ptr::null_mut();
         let index = 0;
         let mut memory_type: triton_sys::TRITONSERVER_MemoryType = 0;
@@ -88,9 +88,11 @@ impl Input {
         println!("buffer: {:?}, byte_size: {:?}", buffer, buffer_byte_size);
         println!("memory_type: {:?}, memory_type_id: {:?}", memory_type, memory_type_id);
 
-        let mem: &[u8] =
-            unsafe { slice::from_raw_parts(buffer as *mut u8, buffer_byte_size as usize) };
-        Ok(mem.to_vec())
+        let element_len = buffer_byte_size as usize / std::mem::size_of::<T>();
+
+        let mem: &[T] =
+            unsafe { slice::from_raw_parts(buffer as *mut T, element_len) };
+        Ok(mem)
     }
 
     pub fn as_string(&self) -> Result<String, Error> {
@@ -98,7 +100,7 @@ impl Input {
         if properties.datatype != DataType::BYTES {
             return Err(format!("DataType does not match String {properties:?}").into());
         }
-        let buffer = self.buffer()?;
+        let buffer = self.slice::<u8>()?;
         let strings = decode_string(&buffer)?;
         Ok(strings.first().unwrap().clone())
     }
@@ -111,7 +113,7 @@ impl Input {
         if properties.byte_size < 8 {
             return Err("Buffer too small".into())
         }
-        let buffer = self.buffer()?;
+        let buffer = self.slice::<u8>()?;
         let mut bytes = [0u8; 8];
         bytes.copy_from_slice(&buffer);
         Ok(u64::from_le_bytes(bytes))

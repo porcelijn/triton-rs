@@ -55,9 +55,12 @@ impl Backend<InstanceState> for ExampleBackend {
         );
 
         for request in requests {
-            let prompt = request.get_input("prompt")?.as_string()?;
-            println!("[EXAMPLE] prompt: {prompt}");
-            
+            let prompt = request.get_input("prompt")?;
+            let floats = prompt.slice::<f32>()?;
+            println!("[EXAMPLE] prompt as f32: {}, len={}", floats[0], floats.len());
+            let prompt = prompt.as_string()?;
+            println!("[EXAMPLE] prompt as_string: {prompt}");
+
             // model_excutor
             let request_id = request.get_request_id()?;
             println!("[EXAMPLE] request_id: {}", request_id);

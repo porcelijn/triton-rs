@@ -48,11 +48,11 @@ pub trait Backend<S: Default> {
         Ok(())
     }
 
-    fn model_initialize() -> Result<(), Error> {
+    fn model_initialize(_model: super::Model) -> Result<(), Error> {
         Ok(())
     }
 
-    fn model_finalize() -> Result<(), Error> {
+    fn model_finalize(_model: super::Model) -> Result<(), Error> {
         Ok(())
     }
 
@@ -108,14 +108,16 @@ macro_rules! declare_backend {
         extern "C" fn TRITONBACKEND_ModelInitialize(
             model: *mut triton_rs::sys::TRITONBACKEND_Model,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            triton_rs::call_checked!($class::model_initialize())
+            let mut model = triton_rs::Model::from_ptr(model);
+            triton_rs::call_checked!($class::model_initialize(model))
         }
 
         #[no_mangle]
         extern "C" fn TRITONBACKEND_ModelFinalize(
-            model: *const triton_rs::sys::TRITONBACKEND_Model,
+            model: *mut triton_rs::sys::TRITONBACKEND_Model,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            triton_rs::call_checked!($class::model_finalize())
+            let mut model = triton_rs::Model::from_ptr(model);
+            triton_rs::call_checked!($class::model_finalize(model))
         }
 
         #[no_mangle]
