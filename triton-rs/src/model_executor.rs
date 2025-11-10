@@ -5,7 +5,7 @@ use std::os::raw::c_void;
 use std::ptr;
 // use async_trait::async_trait;
 use crate::error::ModelExecuterError;
-use crate::{InferenceRequest, dump_err};
+use crate::{InferenceRequest, InferenceResponse, dump_err};
 use crate::Server;
 use tokio::sync::oneshot;
 
@@ -62,7 +62,7 @@ impl TritonModelExecuter<'_> {
     pub async fn execute(
         &self,
         request: &InferenceRequest,
-    ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, ModelExecuterError> {
+    ) -> Result<InferenceResponse, ModelExecuterError> {
         let (tx, rx) = oneshot::channel();
         let tx_ptr = Box::into_raw(Box::new(tx));
 
@@ -87,7 +87,7 @@ impl TritonModelExecuter<'_> {
         self.server.infer_async(request)?;
 
         // Wait for response
-        rx.await.map_err(|_| {
+        rx.await.map(InferenceResponse::from_ptr).map_err(|_| {
             ModelExecuterError::ExecutionError("Failed to receive inference response".to_string())
         })
     }

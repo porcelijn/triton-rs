@@ -81,13 +81,12 @@ impl Backend<InstanceState> for ExampleBackend {
 
             println!("set input data finish");
 
-            let response_tmp = block_on(executor.execute(&inference_request))?;
+            let infer_response = block_on(executor.execute(&inference_request))?;
 
             // executor.execute(&inference_request).await.map_err(|e| {
             //     // Custom error handling logic
             //     triton_rs::ModelExecuterError::ExecutionError(e)
             // })?;
-            let infer_response = triton_rs::InferenceResponse::from_ptr(response_tmp);
 
             println!(
                 "[EXAMPLE] inference_response output : {:?}",
