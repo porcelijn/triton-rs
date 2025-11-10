@@ -1,4 +1,6 @@
-use crate::{check_err, Request, Error};
+use crate::{check_err, Error};
+use crate::{DataType, Request};
+use crate::data_type::SupportedTypes;
 use libc::c_void;
 use std::ffi::CString;
 use std::ptr;
@@ -40,7 +42,7 @@ impl Response {
         Ok(())
     }
 
-    fn output(&mut self, name: &str, data_type: u32, shape: &[i64]) -> Result<Output, Error> {
+    fn output(&mut self, name: &str, data_type: DataType, shape: &[i64]) -> Result<Output, Error> {
         let name = CString::new(name)?;
         let mut output: *mut triton_sys::TRITONBACKEND_Output = ptr::null_mut();
         check_err(unsafe {
@@ -48,7 +50,7 @@ impl Response {
                 self.ptr,
                 &mut output,
                 name.as_ptr(),
-                data_type,
+                data_type as u32,
                 shape.as_ptr(),
                 shape.len().try_into().unwrap(),
             )
@@ -57,9 +59,12 @@ impl Response {
         Ok(Output::from_ptr(output))
     }
 
-    pub fn add_output(&mut self, name: &str, data_type: u32, shape: &[i64], data: &[u8]) -> Result<(), Error> {
+    pub fn add_output<T>(&mut self, name: &str, shape: &[i64], data: &[T]) -> Result<(), Error>
+    where T: Copy + SupportedTypes {
+        let data_type = <T as SupportedTypes>::of();
+        assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
         let mut output = self.output(name, data_type, shape)?;
-        output.set_data(&data)?;
+        output.set_data(data)?;
         Ok(())
     }
 }
@@ -69,7 +74,7 @@ impl Drop for Response {
         let error = unsafe {
             triton_sys::TRITONBACKEND_ResponseDelete(self.ptr)
         };
-        assert!(error == ptr::null_mut());
+        assert!(error.is_null());
     }
 }
 
@@ -82,9 +87,10 @@ impl Output {
         Self { ptr }
     }
 
-    pub fn set_data(&mut self, data: &[u8]) -> Result<(), Error> {
+    pub fn set_data<T: Copy>(&mut self, data: &[T]) -> Result<(), Error> {
         let mut buffer: *mut c_void = ptr::null_mut();
-        let buffer_byte_size = data.len() as u64;
+        let element_len = data.len();
+        let buffer_byte_size = std::mem::size_of_val(data) as u64;
         let mut memory_type: triton_sys::TRITONSERVER_MemoryType = 0;
         let mut memory_type_id = 0;
         check_err(unsafe {
@@ -97,11 +103,11 @@ impl Output {
             )
         })?;
 
-        let mem: &mut [u8] = unsafe {
-            slice::from_raw_parts_mut(buffer as *mut u8, buffer_byte_size as usize)
+        let mem: &mut [T] = unsafe {
+            slice::from_raw_parts_mut(buffer as *mut T, element_len)
         };
 
-        mem.copy_from_slice(&data);
+        mem.copy_from_slice(data);
 
         Ok(())
     }

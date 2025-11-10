@@ -1,4 +1,4 @@
-use crate::{check_err, Error};
+use crate::{check_err, DataType, Error, Server};
 use std::ffi::CString;
 
 pub struct InferenceRequest {
@@ -15,7 +15,7 @@ impl InferenceRequest {
     }
 
     pub fn new(
-        server: *mut triton_sys::TRITONSERVER_Server,
+        server: &Server,
         model_name: &str,
         model_version: i64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
@@ -24,7 +24,7 @@ impl InferenceRequest {
         check_err(unsafe {
             triton_sys::TRITONSERVER_InferenceRequestNew(
                 &mut request,
-                server,
+                server.as_ptr(),
                 cstr_model_name.as_ptr(),
                 model_version,
             )
@@ -46,7 +46,7 @@ impl InferenceRequest {
     pub fn add_input(
         &self,
         name: &str,
-        dtype: triton_sys::TRITONSERVER_DataType,
+        data_type: DataType,
         shape: &[i64],
     ) -> Result<(), Box<dyn std::error::Error>> {
         let cstr_name = CString::new(name)?;
@@ -55,7 +55,7 @@ impl InferenceRequest {
             triton_sys::TRITONSERVER_InferenceRequestAddInput(
                 self.ptr,
                 cstr_name.as_ptr(),
-                dtype,
+                data_type as u32,
                 shape.as_ptr(),
                 shape.len().try_into().expect("Shape length overflow"),
             )

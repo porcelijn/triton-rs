@@ -6,6 +6,7 @@ use std::ptr;
 // use async_trait::async_trait;
 use crate::error::ModelExecuterError;
 use crate::{InferenceRequest, dump_err};
+use crate::Server;
 use tokio::sync::oneshot;
 
 // // #[async_trait]
@@ -17,12 +18,12 @@ use tokio::sync::oneshot;
 //     ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, ModelExecuterError>;
 // }
 
-pub struct TritonModelExecuter {
-    server: *mut triton_sys::TRITONSERVER_Server,
+pub struct TritonModelExecuter<'a> {
+    server: &'a Server,
     allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
 }
 
-impl Drop for TritonModelExecuter {
+impl Drop for TritonModelExecuter<'_> {
     fn drop(&mut self) {
         unsafe {
             // Clean up allocator when executor is dropped
@@ -33,8 +34,8 @@ impl Drop for TritonModelExecuter {
     }
 }
 
-impl TritonModelExecuter {
-    pub fn new(server: *mut triton_sys::TRITONSERVER_Server) -> Result<Self, ModelExecuterError> {
+impl<'a> TritonModelExecuter<'a> {
+    pub fn new(server: &'a Server) -> Result<Self, ModelExecuterError> {
         let mut allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator = ptr::null_mut();
 
         unsafe {
@@ -52,13 +53,12 @@ impl TritonModelExecuter {
                 ));
             }
         }
-
         Ok(Self { server, allocator })
     }
 }
 
 // #[async_trait]
-impl TritonModelExecuter {
+impl TritonModelExecuter<'_> {
     pub async fn execute(
         &self,
         request: &InferenceRequest,
@@ -82,18 +82,9 @@ impl TritonModelExecuter {
                     "Failed to set response callback".to_string(),
                 ));
             }
-
-            // Start async inference
-            let err =
-                triton_sys::TRITONSERVER_ServerInferAsync(self.server, request.as_ptr(), ptr::null_mut());
-
-            if !err.is_null() {
-                dump_err(err);
-                return Err(ModelExecuterError::ExecutionError(
-                    "Failed to start async inference".to_string(),
-                ));
-            }
         }
+
+        self.server.infer_async(request)?;
 
         // Wait for response
         rx.await.map_err(|_| {
@@ -188,12 +179,13 @@ mod tests {
     use std::ptr;
     use tokio::test;
 
-    // #[test]
-    // async fn test_executer_creation() {
-    //     // Create with null server pointer for test
-    //     let executer = new_executer(ptr::null_mut());
-    //     assert!(executer.is_ok());
-
-    //     let executer = executer.unwrap();
-    // }
+//    #[test]
+//    async fn test_executer_creation() {
+//        // Create with null server pointer for test
+//        let server = Server::from_ptr(ptr::null_mut());
+//        let executer = TritonModelExecuter::new(&server);
+//        assert!(executer.is_ok());
+//
+//        let executer = executer.unwrap();
+//    }
 }

@@ -1,4 +1,4 @@
-use crate::{check_err, Error};
+use crate::{check_err, Error, Server};
 use libc::{c_char, size_t};
 use std::ffi::CStr;
 use std::fs::File;
@@ -12,10 +12,10 @@ pub struct Model {
 
 impl Model {
 
-    pub fn get_server(&self) -> Result<*mut triton_sys::TRITONSERVER_Server, Error> {
+    pub fn get_server(&self) -> Result<Server, Error> {
         let mut server: *mut triton_sys::TRITONSERVER_Server = ptr::null_mut();
         check_err(unsafe { triton_sys::TRITONBACKEND_ModelServer(self.ptr, &mut server) })?;
-        Ok(server)
+        Ok(Server::from_ptr(server))
     }
 
     pub fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_Model) -> Self {

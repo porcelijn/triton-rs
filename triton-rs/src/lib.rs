@@ -1,4 +1,5 @@
 mod backend;
+mod data_type;
 mod model;
 mod model_instance;
 mod request;
@@ -7,8 +8,10 @@ mod model_executor;
 mod error;
 mod inference_request;
 mod inference_response;
+mod server;
 
 pub use backend::Backend;
+pub use data_type::DataType;
 pub use model::Model;
 pub use model_instance::ModelInstance;
 pub use request::Request;
@@ -18,6 +21,7 @@ pub use model_executor::TritonModelExecuter;
 pub use inference_request::InferenceRequest;
 pub use inference_response::InferenceResponse;
 pub use error::ModelExecuterError;
+pub use server::Server;
 
 pub type Error = Box<dyn std::error::Error>;
 

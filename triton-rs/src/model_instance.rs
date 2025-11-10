@@ -8,7 +8,7 @@ pub struct ModelInstance<S = ()> {
 }
 
 impl<S> ModelInstance<S> {
-    
+
     pub fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_ModelInstance) -> Self {
         Self { ptr, _state: PhantomData }
     }
@@ -18,7 +18,7 @@ impl<S> ModelInstance<S> {
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ModelInstanceModel(self.ptr, &mut model)
         })?;
-    
+
         if model.is_null() {
             return Err("Failed to get the model pointer".into());
         }
@@ -40,11 +40,11 @@ impl<S> ModelInstance<S> {
 
     pub fn replace_state(&self, new_state: Option<S>) -> Result<Option<S>, Error> {
         let old_state = self.raw_state()?;
-        
+
         let new_state = match new_state {
             Some(new_state) => {
                 let new_state = Box::new(new_state);
-                Box::<S>::into_raw(new_state) as *mut S as *mut c_void
+                Box::<S>::into_raw(new_state) as *mut c_void
             },
             None => ptr::null_mut()
         };
@@ -55,7 +55,7 @@ impl<S> ModelInstance<S> {
         if old_state.is_null() {
             return Ok(None);
         }
-        
+
         let old_state = unsafe { Box::<S>::from_raw(old_state) };
         Ok(Some(*old_state))
     }

@@ -5,6 +5,7 @@ use std::ffi::CString;
 use std::ptr;
 use std::slice;
 use triton_rs::Backend;
+use triton_rs::DataType;
 use triton_rs::Response;
 
 #[derive(Debug, Default)]
@@ -59,10 +60,10 @@ impl Backend<InstanceState> for ExampleBackend {
             let output1_name = "output";
 
             let server = model.get_server()?;
-            let executor = triton_rs::TritonModelExecuter::new(server)?;
+            let executor = triton_rs::TritonModelExecuter::new(&server)?;
 
             let inference_request =
-                triton_rs::InferenceRequest::new(server, model_name, model_version)?;
+                triton_rs::InferenceRequest::new(&server, model_name, model_version)?;
 
             inference_request.set_request_id(request_id.as_str())?;
             inference_request.set_correlation_id(correlation_id)?;
@@ -70,11 +71,7 @@ impl Backend<InstanceState> for ExampleBackend {
 
             println!("[EXAMPLE] set request id and correlation id finish");
 
-            inference_request.add_input(
-                input1_name,
-                triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BYTES,
-                &[1],
-            )?;
+            inference_request.add_input(input1_name, DataType::BYTES, &[1],)?;
             println!("add input finish");
 
             let input1_data = vec![b"test_bls_infer_req".as_ptr() as u8; 18];
@@ -107,10 +104,7 @@ impl Backend<InstanceState> for ExampleBackend {
 
             let out = format!("you said: {prompt}");
             let encoded = triton_rs::encode_string(&out);
-            response.add_output("output",
-                triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BYTES,
-                &[1], &encoded)?;
-
+            response.add_output(output1_name, &[1], &encoded)?;
             response.send(SEND_FLAGS_FINAL)?;
         }
 
