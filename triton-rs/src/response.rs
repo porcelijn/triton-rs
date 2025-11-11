@@ -6,8 +6,15 @@ use std::ffi::CString;
 use std::ptr;
 use std::slice;
 
+#[repr(u32)]
+#[derive(Clone, Copy, Debug)]
+pub enum ResponseFlags {
+    NONE = 0,
+    FINAL = triton_sys::tritonserver_responsecompleteflag_enum_TRITONSERVER_RESPONSE_COMPLETE_FINAL,
+}
+
 pub struct Response {
-    ptr: *mut triton_sys::TRITONBACKEND_Response,
+   ptr: *mut triton_sys::TRITONBACKEND_Response,
 }
 
 impl Response {
@@ -23,21 +30,21 @@ impl Response {
         Ok(Response::from_ptr(response))
     }
 
-    pub fn send(self, send_flags: u32) -> Result<(), Error> {
+    pub fn send(self, flags: ResponseFlags) -> Result<(), Error> {
         check_err(unsafe {
-            triton_sys::TRITONBACKEND_ResponseSend(self.ptr, send_flags, ptr::null_mut())
+            triton_sys::TRITONBACKEND_ResponseSend(self.ptr, flags as u32, ptr::null_mut())
         })?;
         Ok(())
     }
 
-    pub fn send_error(self, send_flags: u32, error: Error) -> Result<(), Error> {
+    pub fn send_error(self, flags: ResponseFlags, error: Error) -> Result<(), Error> {
         let error = unsafe {
             let error_code = triton_sys::TRITONSERVER_errorcode_enum_TRITONSERVER_ERROR_UNSUPPORTED;
             let error = CString::new(error.to_string()).unwrap();
             triton_sys::TRITONSERVER_ErrorNew(error_code, error.as_ptr())
         };
         check_err(unsafe {
-            triton_sys::TRITONBACKEND_ResponseSend(self.ptr, send_flags, error)
+            triton_sys::TRITONBACKEND_ResponseSend(self.ptr, flags as u32, error)
         })?;
         Ok(())
     }

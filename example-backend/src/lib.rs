@@ -6,6 +6,7 @@ use std::slice;
 use triton_rs::Backend;
 use triton_rs::DataType;
 use triton_rs::Response;
+use triton_rs::ResponseFlags;
 
 #[derive(Debug, Default)]
 struct InstanceState(usize);
@@ -15,8 +16,6 @@ impl InstanceState {
          self.0 += 1; // do stuff
     }
 }
-
-const SEND_FLAGS_FINAL: u32 = triton_sys::tritonserver_responsecompleteflag_enum_TRITONSERVER_RESPONSE_COMPLETE_FINAL;
 
 struct ExampleBackend;
 
@@ -103,7 +102,7 @@ impl Backend<InstanceState> for ExampleBackend {
             let out = format!("you said: {prompt}");
             let encoded = triton_rs::encode_string(&out);
             response.add_output(output1_name, &[1], &encoded)?;
-            response.send(SEND_FLAGS_FINAL)?;
+            response.send(ResponseFlags::FINAL)?;
         }
 
         Ok(())

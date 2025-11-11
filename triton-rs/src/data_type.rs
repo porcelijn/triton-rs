@@ -48,18 +48,9 @@ impl From<u32> for DataType {
     }
 }
 
-fn strip_type_prefix(value: &str) -> &str {
-    const TYPE_PREFIX: &str = "TYPE_";
-    if value.starts_with(TYPE_PREFIX) {
-        &value[TYPE_PREFIX.len()..]
-    } else {
-        &value[..]
-    }
-}
-
 impl From<&str> for DataType {
     fn from(data_type: &str) -> DataType {
-        let data_type = strip_type_prefix(data_type);
+        let data_type = data_type.strip_prefix("TYPE_").unwrap_or(data_type);
         let data_type = CString::new(data_type).expect("malformed DataType str");
         let data_type = unsafe {
             triton_sys::TRITONSERVER_StringToDataType(data_type.as_ptr())
