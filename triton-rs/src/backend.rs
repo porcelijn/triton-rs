@@ -28,7 +28,7 @@ pub trait Backend<ModelInstanceState: Default, ModelState =()> {
     /// initialize any state associated with the instance.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceInitialize.
-    fn model_instance_initialize(model_instance: super::ModelInstance<ModelInstanceState>) -> Result<(), Error> {
+    fn model_instance_initialize(model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
         let previous = model_instance.replace_state(Some(ModelInstanceState::default()))?;
         assert!(previous.is_none());
         Ok(())
@@ -42,7 +42,7 @@ pub trait Backend<ModelInstanceState: Default, ModelState =()> {
     /// exited/joined before returning from this function.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceFinalize.
-    fn model_instance_finalize(model_instance: super::ModelInstance<ModelInstanceState>) -> Result<(), Error> {
+    fn model_instance_finalize(model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
         let previous = model_instance.replace_state(None)?;
         assert!(previous.is_some());
         Ok(())
@@ -65,7 +65,7 @@ pub trait Backend<ModelInstanceState: Default, ModelState =()> {
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceExecute.
     fn model_instance_execute(
-        model_instance: super::ModelInstance<ModelInstanceState>,
+        model_instance: super::ModelInstance<ModelInstanceState, ModelState>,
         requests: &[super::Request],
     ) -> Result<(), Error>;
 }

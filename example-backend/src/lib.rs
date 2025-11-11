@@ -28,10 +28,10 @@ struct ExampleBackend;
 impl Backend<InstanceState, ModelState> for ExampleBackend {
 
     fn model_instance_execute(
-        model_instance: triton_rs::ModelInstance<InstanceState>,
+        model_instance: triton_rs::ModelInstance<InstanceState, ModelState>,
         requests: &[triton_rs::Request],
     ) -> Result<(), triton_rs::Error> {
-        let state: &mut InstanceState = model_instance.state()?;
+        let state = model_instance.state()?;
         state.change();
         println!("[EXAMPLE] model_instance_execute ({state:?}");
 
