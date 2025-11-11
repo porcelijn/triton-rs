@@ -48,11 +48,21 @@ impl From<u32> for DataType {
     }
 }
 
+fn strip_type_prefix(value: &str) -> &str {
+    const TYPE_PREFIX: &str = "TYPE_";
+    if value.starts_with(TYPE_PREFIX) {
+        &value[TYPE_PREFIX.len()..]
+    } else {
+        &value[..]
+    }
+}
+
 impl From<&str> for DataType {
-    fn from(v: &str) -> DataType {
-        let v = CString::new(v).expect("malformed DataType str");
+    fn from(data_type: &str) -> DataType {
+        let data_type = strip_type_prefix(data_type);
+        let data_type = CString::new(data_type).expect("malformed DataType str");
         let data_type = unsafe {
-            triton_sys::TRITONSERVER_StringToDataType(v.as_ptr())
+            triton_sys::TRITONSERVER_StringToDataType(data_type.as_ptr())
         };
         data_type.into()
     }
@@ -82,3 +92,4 @@ impl SupportedTypes for f32 { fn of() -> DataType { DataType::FP32 } }
 // ...
 //impl SupportedTypes for &str { fn of() -> DataType { DataType::BYTES } }
 impl SupportedTypes for u8 { fn of() -> DataType { DataType::BYTES } } // fixme
+
