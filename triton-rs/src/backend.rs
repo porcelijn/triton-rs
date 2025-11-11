@@ -1,6 +1,6 @@
 use super::Error;
 
-pub trait Backend<S: Default> {
+pub trait Backend<ModelInstanceState: Default, ModelState =()> {
     /// Initialize a backend. This function is optional, a backend is not
     /// required to implement it. This function is called once when a
     /// backend is loaded to allow the backend to initialize any state
@@ -28,8 +28,8 @@ pub trait Backend<S: Default> {
     /// initialize any state associated with the instance.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceInitialize.
-    fn model_instance_initialize(model_instance: super::ModelInstance<S>) -> Result<(), Error> {
-        let previous = model_instance.replace_state(Some(S::default()))?;
+    fn model_instance_initialize(model_instance: super::ModelInstance<ModelInstanceState>) -> Result<(), Error> {
+        let previous = model_instance.replace_state(Some(ModelInstanceState::default()))?;
         assert!(previous.is_none());
         Ok(())
     }
@@ -42,17 +42,18 @@ pub trait Backend<S: Default> {
     /// exited/joined before returning from this function.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceFinalize.
-    fn model_instance_finalize(model_instance: super::ModelInstance<S>) -> Result<(), Error> {
+    fn model_instance_finalize(model_instance: super::ModelInstance<ModelInstanceState>) -> Result<(), Error> {
         let previous = model_instance.replace_state(None)?;
         assert!(previous.is_some());
         Ok(())
     }
 
-    fn model_initialize(_model: super::Model) -> Result<(), Error> {
+    fn model_initialize(_model: super::Model<ModelState>) -> Result<(), Error> {
         Ok(())
     }
 
-    fn model_finalize(_model: super::Model) -> Result<(), Error> {
+    fn model_finalize(model: super::Model<ModelState>) -> Result<(), Error> {
+        let _previous = model.replace_state(None)?;
         Ok(())
     }
 
@@ -64,7 +65,7 @@ pub trait Backend<S: Default> {
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceExecute.
     fn model_instance_execute(
-        model_instance: super::ModelInstance<S>,
+        model_instance: super::ModelInstance<ModelInstanceState>,
         requests: &[super::Request],
     ) -> Result<(), Error>;
 }

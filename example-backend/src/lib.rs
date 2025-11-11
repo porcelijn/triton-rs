@@ -17,9 +17,15 @@ impl InstanceState {
     }
 }
 
+struct ModelState;
+
+impl ModelState {
+    fn read_setting(&self) -> &'static str { "foo" }
+}
+
 struct ExampleBackend;
 
-impl Backend<InstanceState> for ExampleBackend {
+impl Backend<InstanceState, ModelState> for ExampleBackend {
 
     fn model_instance_execute(
         model_instance: triton_rs::ModelInstance<InstanceState>,
@@ -29,12 +35,13 @@ impl Backend<InstanceState> for ExampleBackend {
         state.change();
         println!("[EXAMPLE] model_instance_execute ({state:?}");
 
-        let model = model_instance.model()?;
+        let model: triton_rs::Model<ModelState> = model_instance.model()?;
 
         println!("[EXAMPLE] model config: {:?}", model.model_config()?);
+        let model_setting = model.state()?.read_setting();
 
         println!(
-            "[EXAMPLE] request for model {} {} {}",
+            "[EXAMPLE] request for model {} {} {} {model_setting}",
             model.name()?,
             model.version()?,
             model.location()?
@@ -57,7 +64,7 @@ impl Backend<InstanceState> for ExampleBackend {
             let input1_name = "prompt";
             let output1_name = "output";
 
-            let server = model.get_server()?;
+            let server = model.server()?;
             let executor = triton_rs::TritonModelExecuter::new(&server)?;
 
             let inference_request =

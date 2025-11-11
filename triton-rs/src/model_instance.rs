@@ -13,7 +13,7 @@ impl<S> ModelInstance<S> {
         Self { ptr, _state: PhantomData }
     }
 
-    pub fn model(&self) -> Result<Model, Error> {
+    pub fn model<T>(&self) -> Result<Model<T>, Error> {
         let mut model : *mut triton_sys::TRITONBACKEND_Model = ptr::null_mut();
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ModelInstanceModel(self.ptr, &mut model)

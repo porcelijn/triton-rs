@@ -1,25 +1,27 @@
 use crate::{check_err, Error, Server};
 use libc::{c_char, size_t};
-use std::ffi::CStr;
+use std::ffi::{c_void, CStr};
 use std::fs::File;
 use std::io::prelude::*;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::ptr;
 
-pub struct Model {
+pub struct Model<S = ()> {
     ptr: *mut triton_sys::TRITONBACKEND_Model,
+    _state: PhantomData<S>,
 }
 
-impl Model {
+impl<S> Model<S> {
 
-    pub fn get_server(&self) -> Result<Server, Error> {
+    pub fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_Model) -> Self {
+        Self { ptr, _state: PhantomData }
+    }
+
+    pub fn server(&self) -> Result<Server, Error> {
         let mut server: *mut triton_sys::TRITONSERVER_Server = ptr::null_mut();
         check_err(unsafe { triton_sys::TRITONBACKEND_ModelServer(self.ptr, &mut server) })?;
         Ok(Server::from_ptr(server))
-    }
-
-    pub fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_Model) -> Self {
-        Self { ptr }
     }
 
     pub fn name(&self) -> Result<String, Error> {
@@ -95,5 +97,47 @@ impl Model {
         };
 
         Ok(json_str)
+    }
+
+    pub fn state(&self) -> Result<&mut S, Error> {
+        let state = self.raw_state()?;
+        if state.is_null() {
+            return Err("Failed to get the state pointer".into());
+        }
+
+        let state: *mut S = state as _;
+        let state: &mut S = unsafe { state.as_mut() }.unwrap();
+
+        Ok(state)
+    }
+
+    pub fn replace_state(&self, new_state: Option<S>) -> Result<Option<S>, Error> {
+        let old_state = self.raw_state()?;
+
+        let new_state = match new_state {
+            Some(new_state) => {
+                let new_state = Box::new(new_state);
+                Box::<S>::into_raw(new_state) as *mut c_void
+            },
+            None => ptr::null_mut()
+        };
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_ModelSetState(self.ptr, new_state)
+        })?;
+
+        if old_state.is_null() {
+            return Ok(None);
+        }
+
+        let old_state = unsafe { Box::<S>::from_raw(old_state) };
+        Ok(Some(*old_state))
+    }
+
+    fn raw_state(&self) -> Result<*mut S, Error> {
+        let mut state : *mut c_void = ptr::null_mut();
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_ModelState(self.ptr, &mut state)
+        })?;
+        Ok(state as *mut S)
     }
 }
