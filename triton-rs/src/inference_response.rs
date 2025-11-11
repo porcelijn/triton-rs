@@ -1,4 +1,5 @@
 use crate::check_err;
+use crate::DataType;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_void};
 
@@ -30,7 +31,7 @@ impl InferenceResponse {
 
 pub struct OutputData {
     pub name: String,
-    pub datatype: triton_sys::TRITONSERVER_DataType,
+    pub data_type: DataType,
     pub shape: Vec<i64>,
     pub data: Vec<u8>,
     pub memory_type: triton_sys::TRITONSERVER_MemoryType,
@@ -71,6 +72,7 @@ impl OutputData {
             }
 
             let name = CStr::from_ptr(name_ptr).to_str()?.to_owned();
+            let data_type = DataType::from(datatype);
             let shape = if !shape_ptr.is_null() {
                 std::slice::from_raw_parts(shape_ptr, dim_count as usize).to_vec()
             } else {
@@ -83,22 +85,15 @@ impl OutputData {
                 vec![]
             };
 
-            Ok(Self {
-                name,
-                datatype,
-                shape,
-                data,
-                memory_type,
-                memory_type_id,
-            })
+            Ok(Self { name, data_type, shape, data, memory_type, memory_type_id})
         }
     }
 
     pub fn print_info(&self) {
         println!(
             "name: {:?}, datatype: {:?}, shape: {:?}, data len: {:?}, memory_type: {:?}, memory_type_id: {:?}",
-            self.name, self.datatype, self.shape, self.data.len(), self.memory_type, self.memory_type_id);
-        if self.datatype == triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_BYTES {
+            self.name, self.data_type, self.shape, self.data.len(), self.memory_type, self.memory_type_id);
+        if self.data_type == DataType::BYTES {
             println!("data: {:?}", String::from_utf8_lossy(&self.data));
         }
     }

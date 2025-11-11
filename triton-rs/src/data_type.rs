@@ -59,15 +59,15 @@ impl From<&str> for DataType {
 }
 
 impl From<&DataType> for u32 { fn from(v: &DataType) -> u32 { *v as u32 } }
-impl From<&DataType> for &str {
-    fn from(v: &DataType) -> &'static str {
+impl std::fmt::Display for DataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let cstr = unsafe {
             // The returned string is not owned by the caller and so should not be
             // modified or freed.
-            let char_ptr = triton_sys::TRITONSERVER_DataTypeString(v.into());
+            let char_ptr = triton_sys::TRITONSERVER_DataTypeString(self.into());
             CStr::from_ptr(char_ptr)
         };
-        cstr.to_str().unwrap()
+        f.write_str(cstr.to_str().unwrap())
     }
 }
 
@@ -77,6 +77,8 @@ impl SupportedTypes for bool { fn of() -> DataType { DataType::BOOL } }
 //impl SupportedTypes for u8 { fn of() -> DataType { DataType::UINT8 } }
 // ...
 impl SupportedTypes for u64 { fn of() -> DataType { DataType::UINT64 } }
+impl SupportedTypes for i64 { fn of() -> DataType { DataType::INT64 } }
+impl SupportedTypes for f32 { fn of() -> DataType { DataType::FP32 } }
 // ...
 //impl SupportedTypes for &str { fn of() -> DataType { DataType::BYTES } }
 impl SupportedTypes for u8 { fn of() -> DataType { DataType::BYTES } } // fixme

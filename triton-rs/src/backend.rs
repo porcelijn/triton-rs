@@ -73,15 +73,7 @@ pub trait Backend<S: Default> {
 macro_rules! call_checked {
     ($res:expr) => {
         match $res {
-            Err(err) => {
-                let err = CString::new(err.to_string()).expect("CString::new failed");
-                unsafe {
-                    triton_rs::sys::TRITONSERVER_ErrorNew(
-                        triton_rs::sys::TRITONSERVER_errorcode_enum_TRITONSERVER_ERROR_INTERNAL,
-                        err.as_ptr(),
-                    )
-                }
-            }
+            Err(err) => triton_rs::to_TRITONSERVER_Error(err),
             Ok(ok) => ptr::null(),
         }
     };

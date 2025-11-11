@@ -25,6 +25,17 @@ pub use server::Server;
 
 pub type Error = Box<dyn std::error::Error>;
 
+#[allow(non_snake_case)]
+pub fn to_TRITONSERVER_Error(err: Error) -> *const triton_sys::TRITONSERVER_Error {
+    let err = std::ffi::CString::new(err.to_string()).expect("CString::new failed");
+    unsafe {
+        triton_sys::TRITONSERVER_ErrorNew(
+            triton_sys::TRITONSERVER_errorcode_enum_TRITONSERVER_ERROR_INTERNAL,
+            err.as_ptr(),
+        )
+    }
+}
+
 pub(crate) fn check_err(err: *mut triton_sys::TRITONSERVER_Error) -> Result<(), Error> {
     if !err.is_null() {
         unsafe{
