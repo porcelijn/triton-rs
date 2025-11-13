@@ -3,6 +3,7 @@ use crate::{DataType, Request};
 use crate::data_type::SupportedTypes;
 use libc::c_void;
 use std::ffi::CString;
+use std::mem;
 use std::ptr;
 use std::slice;
 
@@ -34,6 +35,7 @@ impl Response {
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ResponseSend(self.ptr, flags as u32, ptr::null_mut())
         })?;
+        mem::forget(self); // prevent Drop because, send frees Response
         Ok(())
     }
 
@@ -46,6 +48,7 @@ impl Response {
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ResponseSend(self.ptr, flags as u32, error)
         })?;
+        mem::forget(self); // prevent Drop because, send frees Response
         Ok(())
     }
 
