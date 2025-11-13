@@ -17,6 +17,7 @@ impl InstanceState {
     }
 }
 
+#[derive(Debug, Default)]
 struct ModelState;
 
 impl ModelState {
@@ -26,6 +27,22 @@ impl ModelState {
 struct ExampleBackend;
 
 impl Backend<InstanceState, ModelState> for ExampleBackend {
+
+    fn model_initialize(
+            model: triton_rs::Model<ModelState>
+    ) -> Result<(), triton_rs::Error> {
+        let previous = model.replace_state(Some(ModelState::default()))?;
+        assert!(previous.is_none());
+        Ok(())
+    }
+
+    fn model_instance_initialize(
+            model_instance: triton_rs::ModelInstance<InstanceState, ModelState>
+    ) -> Result<(), triton_rs::Error> {
+        let previous = model_instance.replace_state(Some(InstanceState::default()))?;
+        assert!(previous.is_none());
+        Ok(())
+    }
 
     fn model_instance_execute(
         model_instance: triton_rs::ModelInstance<InstanceState, ModelState>,
@@ -109,7 +126,7 @@ impl Backend<InstanceState, ModelState> for ExampleBackend {
             let out = format!("you said: {prompt}");
             let encoded = triton_rs::encode_string(&out);
             response.add_output(output1_name, &[1], &encoded)?;
-            response.send(ResponseFlags::FINAL)?;
+            response.send(ResponseFlags::FINAL, None)?;
         }
 
         Ok(())

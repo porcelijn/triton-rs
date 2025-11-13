@@ -31,19 +31,14 @@ impl Response {
         Ok(Response::from_ptr(response))
     }
 
-    pub fn send(self, flags: ResponseFlags) -> Result<(), Error> {
-        check_err(unsafe {
-            triton_sys::TRITONBACKEND_ResponseSend(self.ptr, flags as u32, ptr::null_mut())
-        })?;
-        mem::forget(self); // prevent Drop because, send frees Response
-        Ok(())
-    }
-
-    pub fn send_error(self, flags: ResponseFlags, error: Error) -> Result<(), Error> {
-        let error = unsafe {
-            let error_code = triton_sys::TRITONSERVER_errorcode_enum_TRITONSERVER_ERROR_UNSUPPORTED;
-            let error = CString::new(error.to_string()).unwrap();
-            triton_sys::TRITONSERVER_ErrorNew(error_code, error.as_ptr())
+    pub fn send(self, flags: ResponseFlags, error: Option<Error>) -> Result<(), Error> {
+        let error = match error {
+            Some(error) => unsafe {
+                let error_code = triton_sys::TRITONSERVER_errorcode_enum_TRITONSERVER_ERROR_UNSUPPORTED;
+                let error = CString::new(error.to_string()).unwrap();
+                triton_sys::TRITONSERVER_ErrorNew(error_code, error.as_ptr())
+            },
+            None => ptr::null_mut(),
         };
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ResponseSend(self.ptr, flags as u32, error)

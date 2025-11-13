@@ -1,6 +1,6 @@
 use super::Error;
 
-pub trait Backend<ModelInstanceState: Default, ModelState =()> {
+pub trait Backend<ModelInstanceState = (), ModelState = ()> {
     /// Initialize a backend. This function is optional, a backend is not
     /// required to implement it. This function is called once when a
     /// backend is loaded to allow the backend to initialize any state
@@ -28,9 +28,7 @@ pub trait Backend<ModelInstanceState: Default, ModelState =()> {
     /// initialize any state associated with the instance.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceInitialize.
-    fn model_instance_initialize(model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
-        let previous = model_instance.replace_state(Some(ModelInstanceState::default()))?;
-        assert!(previous.is_none());
+    fn model_instance_initialize(_model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
         Ok(())
     }
 
@@ -43,8 +41,7 @@ pub trait Backend<ModelInstanceState: Default, ModelState =()> {
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceFinalize.
     fn model_instance_finalize(model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
-        let previous = model_instance.replace_state(None)?;
-        assert!(previous.is_some());
+        let _previous = model_instance.replace_state(None)?;
         Ok(())
     }
 
