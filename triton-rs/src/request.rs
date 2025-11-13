@@ -122,7 +122,7 @@ impl Input {
     pub fn properties(&self) -> Result<InputProperties, Error> {
         let mut name = ptr::null();
         let mut datatype = 0u32;
-        let shape = ptr::null_mut();
+        let mut shape = ptr::null();
         let mut dims_count = 0u32;
         let mut byte_size = 0u64;
         let mut buffer_count = 0u32;
@@ -132,7 +132,7 @@ impl Input {
                 self.ptr,
                 &mut name,
                 &mut datatype,
-                shape,
+                &mut shape,
                 &mut dims_count,
                 &mut byte_size,
                 &mut buffer_count,
@@ -142,12 +142,14 @@ impl Input {
         let name: &CStr = unsafe { CStr::from_ptr(name) };
         let name = name.to_string_lossy().to_string();
         let datatype: DataType = datatype.into();
+        let dims_count = dims_count as usize;
+        let shape = unsafe { slice::from_raw_parts(shape, dims_count) };
+        let shape = Vec::from(shape);
 
         Ok(InputProperties {
             name,
             datatype,
-            // shape,
-            dims_count,
+            shape,
             byte_size,
             buffer_count,
         })
@@ -156,12 +158,11 @@ impl Input {
 
 #[derive(Debug)]
 pub struct InputProperties {
-    #[allow(unused)] name: String,
-    datatype: DataType,
-    // shape: Vec<i64>,
-    #[allow(unused)] dims_count: u32,
-    byte_size: u64,
-    #[allow(unused)] buffer_count: u32,
+    pub name: String,
+    pub datatype: DataType,
+    pub shape: Vec<i64>,
+    pub byte_size: u64,
+    pub buffer_count: u32,
 }
 
 #[derive(Debug,PartialEq)]
