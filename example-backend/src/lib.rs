@@ -68,6 +68,8 @@ impl Backend<InstanceState, ModelState> for ExampleBackend {
             let prompt = request.get_input("prompt")?;
             let floats = prompt.slice::<f32>()?;
             println!("[EXAMPLE] prompt as f32: {}, len={}", floats[0], floats.len());
+            let array =  prompt.as_array::<f32, 2>()?;
+            println!("[EXAMPLE] prompt as ndarray: {array}");
             let prompt = prompt.as_string()?;
             println!("[EXAMPLE] prompt as_string: {prompt}");
 

@@ -72,7 +72,7 @@ impl std::fmt::Display for DataType {
     }
 }
 
-pub trait SupportedTypes { fn of() -> DataType { DataType::INVALID } }
+pub trait SupportedTypes : Clone { fn of() -> DataType { DataType::INVALID } }
 
 impl SupportedTypes for bool { fn of() -> DataType { DataType::BOOL } }
 //impl SupportedTypes for u8 { fn of() -> DataType { DataType::UINT8 } }

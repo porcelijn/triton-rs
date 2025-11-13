@@ -1,5 +1,6 @@
-use crate::{check_err, DataType, decode_string, Error};
+use crate::{check_err, DataType, decode_string, Error, data_type::SupportedTypes};
 use libc::c_void;
+use ndarray::{Array, IxDyn};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::c_char;
@@ -15,7 +16,7 @@ impl Request {
         Self { ptr }
     }
 
-    pub fn as_ptr(&self) -> *mut triton_sys::TRITONBACKEND_Request {
+    pub(crate) fn as_ptr(&self) -> *mut triton_sys::TRITONBACKEND_Request {
         self.ptr
     }
 
@@ -119,6 +120,16 @@ impl Input {
         Ok(u64::from_le_bytes(bytes))
     }
 
+    pub fn as_array<T, const N: usize>(&self) -> Result<Array<T, IxDyn>, Error>
+            where T: SupportedTypes {
+        let properties = self.properties()?;
+        assert!(<T as SupportedTypes>::of() == properties.datatype);
+        assert!(N == properties.shape.len());
+        let shape: Vec<usize> = properties.shape.iter().map(|&x| x as usize).collect();
+        let array = Array::from_vec(self.slice::<T>()?.to_vec());
+        Ok(array.into_shape_with_order(shape)?)
+    }
+
     pub fn properties(&self) -> Result<InputProperties, Error> {
         let mut name = ptr::null();
         let mut datatype = 0u32;
@@ -155,6 +166,7 @@ impl Input {
         })
     }
 }
+
 
 #[derive(Debug)]
 pub struct InputProperties {
