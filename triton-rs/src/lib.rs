@@ -20,6 +20,7 @@ pub use model_instance::ModelInstance;
 pub use model::Model;
 pub use request::Request;
 pub use response::Response;
+pub use response::ResponseFactory;
 pub use response::ResponseFlags;
 pub use server::Server;
 pub use triton_sys as sys;

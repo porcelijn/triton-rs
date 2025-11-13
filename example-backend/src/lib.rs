@@ -121,12 +121,16 @@ impl Backend<InstanceState, ModelState> for ExampleBackend {
                 output.print_info();
             }
 
-            let mut response = Response::new(request)?;
+            // let mut response = Response::from_request(request)?;
+            let factory = &triton_rs::ResponseFactory::from_request(request)?;
+            let mut response = Response::from_factory(factory)?;
 
             let out = format!("you said: {prompt}");
             let encoded = triton_rs::encode_string(&out);
             response.add_output(output1_name, &[1], &encoded)?;
-            response.send(ResponseFlags::FINAL, None)?;
+            response.send(ResponseFlags::NONE, None)?;
+            // ... send more responses, then:
+            factory.send_flags(ResponseFlags::FINAL)?;
         }
 
         Ok(())

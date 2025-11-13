@@ -23,10 +23,18 @@ impl Response {
         Self { ptr }
     }
 
-    pub fn new(request: &Request) -> Result<Self, Error> {
+    pub fn from_request(request: &Request) -> Result<Self, Error> {
         let mut response: *mut triton_sys::TRITONBACKEND_Response = ptr::null_mut();
         check_err(unsafe {
             triton_sys::TRITONBACKEND_ResponseNew(&mut response, request.as_ptr())
+        })?;
+        Ok(Response::from_ptr(response))
+    }
+
+    pub fn from_factory(factory: &ResponseFactory) -> Result<Self, Error> {
+        let mut response: *mut triton_sys::TRITONBACKEND_Response = ptr::null_mut();
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_ResponseNewFromFactory(&mut response, factory.as_ptr())
         })?;
         Ok(Response::from_ptr(response))
     }
@@ -117,3 +125,42 @@ impl Output {
         Ok(())
     }
 }
+
+pub struct ResponseFactory {
+   ptr: *mut triton_sys::TRITONBACKEND_ResponseFactory,
+}
+
+impl ResponseFactory {
+    fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_ResponseFactory) -> Self {
+        Self { ptr }
+    }
+
+    pub(crate) fn as_ptr(&self) -> *mut triton_sys::TRITONBACKEND_ResponseFactory {
+        self.ptr
+    }
+
+    pub fn from_request(request: &Request) -> Result<Self, Error> {
+        let mut factory: *mut triton_sys::TRITONBACKEND_ResponseFactory = ptr::null_mut();
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_ResponseFactoryNew(&mut factory, request.as_ptr())
+        })?;
+        Ok(ResponseFactory::from_ptr(factory))
+    }
+
+    pub fn send_flags(&self, flags: ResponseFlags) -> Result<(), Error> {
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_ResponseFactorySendFlags(self.ptr, flags as u32)
+        })?;
+        Ok(())
+    }
+}
+
+impl Drop for ResponseFactory {
+    fn drop(&mut self) {
+        let error = unsafe {
+            triton_sys::TRITONBACKEND_ResponseFactoryDelete(self.ptr)
+        };
+        assert!(error.is_null());
+    }
+}
+
