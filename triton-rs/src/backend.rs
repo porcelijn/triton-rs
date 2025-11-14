@@ -1,6 +1,11 @@
 use super::Error;
+use super::Model;
+use super::ModelInstance;
 
-pub trait Backend<ModelInstanceState = (), ModelState = ()> {
+pub trait Backend {
+    type ModelInstanceState;
+    type ModelState;
+
     /// Initialize a backend. This function is optional, a backend is not
     /// required to implement it. This function is called once when a
     /// backend is loaded to allow the backend to initialize any state
@@ -28,7 +33,7 @@ pub trait Backend<ModelInstanceState = (), ModelState = ()> {
     /// initialize any state associated with the instance.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceInitialize.
-    fn model_instance_initialize(_model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
+    fn model_instance_initialize(_model_instance: super::ModelInstanceImpl<Self::ModelInstanceState, Self::ModelState>) -> Result<(), Error> {
         Ok(())
     }
 
@@ -40,16 +45,16 @@ pub trait Backend<ModelInstanceState = (), ModelState = ()> {
     /// exited/joined before returning from this function.
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceFinalize.
-    fn model_instance_finalize(model_instance: super::ModelInstance<ModelInstanceState, ModelState>) -> Result<(), Error> {
+    fn model_instance_finalize(model_instance: super::ModelInstanceImpl<Self::ModelInstanceState, Self::ModelState>) -> Result<(), Error> {
         let _previous = model_instance.replace_state(None)?;
         Ok(())
     }
 
-    fn model_initialize(_model: super::Model<ModelState>) -> Result<(), Error> {
+    fn model_initialize(_model: super::ModelImpl<Self::ModelState>) -> Result<(), Error> {
         Ok(())
     }
 
-    fn model_finalize(model: super::Model<ModelState>) -> Result<(), Error> {
+    fn model_finalize(model: super::ModelImpl<Self::ModelState>) -> Result<(), Error> {
         let _previous = model.replace_state(None)?;
         Ok(())
     }
@@ -62,7 +67,7 @@ pub trait Backend<ModelInstanceState = (), ModelState = ()> {
     ///
     /// Corresponds to TRITONBACKEND_ModelInstanceExecute.
     fn model_instance_execute(
-        model_instance: super::ModelInstance<ModelInstanceState, ModelState>,
+        model_instance: super::ModelInstanceImpl<Self::ModelInstanceState, Self::ModelState>,
         requests: &[super::Request],
     ) -> Result<(), Error>;
 }
@@ -98,7 +103,7 @@ macro_rules! declare_backend {
         extern "C" fn TRITONBACKEND_ModelInitialize(
             model: *mut triton_rs::sys::TRITONBACKEND_Model,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            let mut model = triton_rs::Model::from_ptr(model);
+            let mut model = triton_rs::ModelImpl::from_ptr(model);
             triton_rs::call_checked!($class::model_initialize(model))
         }
 
@@ -106,7 +111,7 @@ macro_rules! declare_backend {
         extern "C" fn TRITONBACKEND_ModelFinalize(
             model: *mut triton_rs::sys::TRITONBACKEND_Model,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            let mut model = triton_rs::Model::from_ptr(model);
+            let mut model = triton_rs::ModelImpl::from_ptr(model);
             triton_rs::call_checked!($class::model_finalize(model))
         }
 
@@ -114,7 +119,7 @@ macro_rules! declare_backend {
         extern "C" fn TRITONBACKEND_ModelInstanceInitialize(
             instance: *mut triton_rs::sys::TRITONBACKEND_ModelInstance,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            let mut instance = triton_rs::ModelInstance::from_ptr(instance);
+            let mut instance = triton_rs::ModelInstanceImpl::from_ptr(instance);
             triton_rs::call_checked!($class::model_instance_initialize(instance))
         }
 
@@ -122,7 +127,7 @@ macro_rules! declare_backend {
         extern "C" fn TRITONBACKEND_ModelInstanceFinalize(
             instance: *mut triton_rs::sys::TRITONBACKEND_ModelInstance,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-            let mut instance = triton_rs::ModelInstance::from_ptr(instance);
+            let mut instance = triton_rs::ModelInstanceImpl::from_ptr(instance);
             triton_rs::call_checked!($class::model_instance_finalize(instance))
         }
 
@@ -132,7 +137,7 @@ macro_rules! declare_backend {
             requests: *const *mut triton_rs::sys::TRITONBACKEND_Request,
             request_count: u32,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
-                let instance = triton_rs::ModelInstance::from_ptr(instance);
+                let instance = triton_rs::ModelInstanceImpl::from_ptr(instance);
                 let requests = unsafe { slice::from_raw_parts(requests, request_count as usize) };
                 let requests = requests
                     .iter()

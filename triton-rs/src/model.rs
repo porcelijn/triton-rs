@@ -7,12 +7,57 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::ptr;
 
-pub struct Model<S = ()> {
+pub trait Model {
+    type S;
+    fn state(&self) -> Result<&mut Self::S, Error>;
+    fn replace_state(&self, new_state: Option<Self::S>) -> Result<Option<Self::S>, Error>;
+}
+
+pub struct ModelImpl<S> {
     ptr: *mut triton_sys::TRITONBACKEND_Model,
     _state: PhantomData<S>,
 }
 
-impl<S> Model<S> {
+impl<S> Model for ModelImpl<S> {
+    type S = S;
+
+    fn state(&self) -> Result<&mut Self::S, Error> {
+        let state = self.raw_state()?;
+        if state.is_null() {
+            return Err("Failed to get the state pointer".into());
+        }
+
+        let state: *mut Self::S = state as _;
+        let state: &mut Self::S = unsafe { state.as_mut() }.unwrap();
+
+        Ok(state)
+    }
+
+    fn replace_state(&self, new_state: Option<Self::S>)
+            -> Result<Option<Self::S>, Error> {
+        let old_state = self.raw_state()?;
+
+        let new_state = match new_state {
+            Some(new_state) => {
+                let new_state = Box::new(new_state);
+                Box::<Self::S>::into_raw(new_state) as *mut c_void
+            },
+            None => ptr::null_mut()
+        };
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_ModelSetState(self.ptr, new_state)
+        })?;
+
+        if old_state.is_null() {
+            return Ok(None);
+        }
+
+        let old_state = unsafe { Box::<Self::S>::from_raw(old_state) };
+        Ok(Some(*old_state))
+    }
+}
+
+impl<S> ModelImpl<S> {
 
     pub fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_Model) -> Self {
         Self { ptr, _state: PhantomData }
@@ -97,40 +142,6 @@ impl<S> Model<S> {
         };
 
         Ok(json_str)
-    }
-
-    pub fn state(&self) -> Result<&mut S, Error> {
-        let state = self.raw_state()?;
-        if state.is_null() {
-            return Err("Failed to get the state pointer".into());
-        }
-
-        let state: *mut S = state as _;
-        let state: &mut S = unsafe { state.as_mut() }.unwrap();
-
-        Ok(state)
-    }
-
-    pub fn replace_state(&self, new_state: Option<S>) -> Result<Option<S>, Error> {
-        let old_state = self.raw_state()?;
-
-        let new_state = match new_state {
-            Some(new_state) => {
-                let new_state = Box::new(new_state);
-                Box::<S>::into_raw(new_state) as *mut c_void
-            },
-            None => ptr::null_mut()
-        };
-        check_err(unsafe {
-            triton_sys::TRITONBACKEND_ModelSetState(self.ptr, new_state)
-        })?;
-
-        if old_state.is_null() {
-            return Ok(None);
-        }
-
-        let old_state = unsafe { Box::<S>::from_raw(old_state) };
-        Ok(Some(*old_state))
     }
 
     fn raw_state(&self) -> Result<*mut S, Error> {

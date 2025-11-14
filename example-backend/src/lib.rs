@@ -5,6 +5,8 @@ use std::ptr;
 use std::slice;
 use triton_rs::Backend;
 use triton_rs::DataType;
+use triton_rs::Model;
+use triton_rs::ModelInstance;
 use triton_rs::Response;
 use triton_rs::ResponseFlags;
 
@@ -26,10 +28,12 @@ impl ModelState {
 
 struct ExampleBackend;
 
-impl Backend<InstanceState, ModelState> for ExampleBackend {
+impl Backend for ExampleBackend {
+    type ModelInstanceState = InstanceState;
+    type ModelState = ModelState;
 
     fn model_initialize(
-            model: triton_rs::Model<ModelState>
+            model: triton_rs::ModelImpl<ModelState>
     ) -> Result<(), triton_rs::Error> {
         let previous = model.replace_state(Some(ModelState::default()))?;
         assert!(previous.is_none());
@@ -37,7 +41,7 @@ impl Backend<InstanceState, ModelState> for ExampleBackend {
     }
 
     fn model_instance_initialize(
-            model_instance: triton_rs::ModelInstance<InstanceState, ModelState>
+            model_instance: triton_rs::ModelInstanceImpl<InstanceState, ModelState>
     ) -> Result<(), triton_rs::Error> {
         let previous = model_instance.replace_state(Some(InstanceState::default()))?;
         assert!(previous.is_none());
@@ -45,14 +49,14 @@ impl Backend<InstanceState, ModelState> for ExampleBackend {
     }
 
     fn model_instance_execute(
-        model_instance: triton_rs::ModelInstance<InstanceState, ModelState>,
+        model_instance: triton_rs::ModelInstanceImpl<InstanceState, ModelState>,
         requests: &[triton_rs::Request],
     ) -> Result<(), triton_rs::Error> {
         let state = model_instance.state()?;
         state.change();
         println!("[EXAMPLE] model_instance_execute ({state:?}");
 
-        let model: triton_rs::Model<ModelState> = model_instance.model()?;
+        let model: triton_rs::ModelImpl<ModelState> = model_instance.model()?;
 
         println!("[EXAMPLE] model config: {:?}", model.model_config()?);
         let model_setting = model.state()?.read_setting();
