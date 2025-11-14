@@ -2,6 +2,7 @@ use crate::{check_err, Error};
 use crate::{DataType, Request};
 use crate::data_type::SupportedTypes;
 use libc::c_void;
+use ndarray::{Array, IxDyn};
 use std::ffi::CString;
 use std::mem;
 use std::ptr;
@@ -72,11 +73,14 @@ impl Response {
         Ok(Output::from_ptr(output))
     }
 
-    pub fn add_output<T>(&mut self, name: &str, shape: &[i64], data: &[T]) -> Result<(), Error>
+    pub fn add_output<T>(&mut self, name: &str, array: Array<T, IxDyn>) -> Result<(), Error>
     where T: Copy + SupportedTypes {
         let data_type = <T as SupportedTypes>::of();
         assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
-        let mut output = self.output(name, data_type, shape)?;
+        let shape: Vec<i64> = array.shape().iter().map(|x| *x as i64).collect();
+        let data = array.as_raw_ref();
+        let data = unsafe { slice::from_raw_parts(data.as_ptr(), data.len()) };
+        let mut output = self.output(name, data_type, &shape)?;
         output.set_data(data)?;
         Ok(())
     }
