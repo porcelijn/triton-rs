@@ -1,6 +1,6 @@
 use crate::{check_err, DataType, decode_string, Error, data_type::SupportedTypes};
 use libc::c_void;
-use ndarray::{Array, IxDyn};
+use ndarray::{ArrayView, IxDyn, IntoDimension};
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::os::raw::c_char;
@@ -120,14 +120,17 @@ impl Input {
         Ok(u64::from_le_bytes(bytes))
     }
 
-    pub fn as_array<T, const N: usize>(&self) -> Result<Array<T, IxDyn>, Error>
+    pub fn as_array<T, const N: usize>(&self) -> Result<ArrayView<T, IxDyn>, Error>
             where T: SupportedTypes {
         let properties = self.properties()?;
         assert!(<T as SupportedTypes>::of() == properties.datatype);
         assert!(N == properties.shape.len());
+        const { assert!( N < 6) };
         let shape: Vec<usize> = properties.shape.iter().map(|&x| x as usize).collect();
-        let array = Array::from_vec(self.slice::<T>()?.to_vec());
-        Ok(array.into_shape_with_order(shape)?)
+        let shape = shape.into_dimension();
+        let data = self.slice::<T>()?;
+        let array: ArrayView<T, IxDyn> = ArrayView::from_shape(shape, data)?;
+        Ok(array)
     }
 
     pub fn properties(&self) -> Result<InputProperties, Error> {
