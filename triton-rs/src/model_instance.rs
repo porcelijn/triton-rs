@@ -8,7 +8,6 @@ pub trait ModelInstance {
     fn replace_state(&self, new_state: Option<Self::S>) -> Result<Option<Self::S>, Error>;
 }
 
-
 pub struct ModelInstanceImpl<ModelInstanceState, ModelState> {
     ptr: *mut triton_sys::TRITONBACKEND_ModelInstance,
     _model_instance_state: PhantomData<ModelInstanceState>,

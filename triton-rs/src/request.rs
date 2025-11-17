@@ -52,12 +52,12 @@ impl Request {
         Ok(id)
     }
 
-    pub fn get_flags(&self) -> Result<Flags, Error> {
+    pub fn get_flags(&self) -> Result<RequestFlags, Error> {
         let mut flags: u32 = 0;
         check_err(unsafe {
             triton_sys::TRITONBACKEND_RequestFlags(self.ptr, &mut flags)
         })?;
-        Ok(Flags::from(flags))
+        Ok(RequestFlags::from(flags))
     }
 }
 
@@ -177,10 +177,10 @@ pub struct InputProperties {
     pub buffer_count: u32,
 }
 
-#[derive(Debug,PartialEq)]
-pub struct Flags(u32);
+#[derive(Debug, PartialEq)]
+pub struct RequestFlags(u32);
 
-impl Flags {
+impl RequestFlags {
     pub fn is_start(&self) -> bool {
         self.0 & triton_sys::tritonserver_requestflag_enum_TRITONSERVER_REQUEST_FLAG_SEQUENCE_START != 0
     }
@@ -191,8 +191,8 @@ impl Flags {
 
 }
 
-impl From<u32> for Flags {
-    fn from(v: u32) -> Flags {
-        Flags(v)
+impl From<u32> for RequestFlags {
+    fn from(v: u32) -> RequestFlags {
+        RequestFlags(v)
     }
 }

@@ -21,6 +21,7 @@ pub use model_instance::ModelInstanceImpl;
 pub use model::Model;
 pub use model::ModelImpl;
 pub use request::Request;
+pub use request::RequestFlags;
 pub use response::Response;
 pub use response::ResponseFactory;
 pub use response::ResponseFlags;
