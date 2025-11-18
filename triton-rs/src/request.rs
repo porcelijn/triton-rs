@@ -59,6 +59,13 @@ impl Request {
         })?;
         Ok(RequestFlags::from(flags))
     }
+
+    // Request (or any of it's inputs) must NOT be used after release
+    pub fn release(&self, flags: RequestReleaseFlags) -> Result<(), Error> {
+        check_err(unsafe {
+            triton_sys::TRITONBACKEND_RequestRelease(self.ptr, flags as u32)
+        })
+    }
 }
 
 pub struct Input {
@@ -180,7 +187,7 @@ pub struct InputProperties {
     pub buffer_count: u32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RequestFlags(u32);
 
 impl RequestFlags {
@@ -199,3 +206,12 @@ impl From<u32> for RequestFlags {
         RequestFlags(v)
     }
 }
+
+#[repr(u32)]
+#[derive(Clone, Copy, Debug)]
+pub enum RequestReleaseFlags {
+    NONE = 0,
+    ALL = triton_sys::tritonserver_requestreleaseflag_enum_TRITONSERVER_REQUEST_RELEASE_ALL,
+//  RESCHEDULE = triton_sys::tritonserver_requestreleaseflag_enum_TRITONSERVER_REQUEST_RELEASE_RESCHEDULE,
+}
+

@@ -7,6 +7,7 @@ use triton_rs::Backend;
 use triton_rs::DataType;
 use triton_rs::Model;
 use triton_rs::ModelInstance;
+use triton_rs::RequestReleaseFlags;
 use triton_rs::Response;
 use triton_rs::ResponseFlags;
 
@@ -129,9 +130,10 @@ impl Backend for ExampleBackend {
 
             // let mut response = Response::from_request(request)?;
             let factory = &triton_rs::ResponseFactory::from_request(request)?;
+            // beyond here, we no longer need request
+            request.release(RequestReleaseFlags::ALL)?;
+
             let mut response = Response::from_factory(factory)?;
-
-
             response.add_output(output1_name, array.to_owned())?;
             response.send(ResponseFlags::NONE, None)?;
             // ... send more responses, then:
