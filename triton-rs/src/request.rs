@@ -93,9 +93,6 @@ impl Input {
             )
         })?;
 
-        println!("buffer: {:?}, byte_size: {:?}", buffer, buffer_byte_size);
-        println!("memory_type: {:?}, memory_type_id: {:?}", memory_type, memory_type_id);
-
         let element_len = buffer_byte_size as usize / std::mem::size_of::<T>();
 
         let mem: &[T] =
