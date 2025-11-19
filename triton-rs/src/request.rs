@@ -1,5 +1,6 @@
 use crate::{check_err, DataType, decode_string, Error, data_type::SupportedTypes};
 use libc::c_void;
+#[cfg(feature = "ndarray")]
 use ndarray::{ArrayView, IxDyn, IntoDimension};
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -124,6 +125,7 @@ impl Input {
         Ok(u64::from_le_bytes(bytes))
     }
 
+    #[cfg(feature="ndarray")]
     pub fn as_array<T, const N: usize>(&self) -> Result<ArrayView<T, IxDyn>, Error>
             where T: SupportedTypes {
         let properties = self.properties()?;

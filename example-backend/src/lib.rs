@@ -134,7 +134,7 @@ impl Backend for ExampleBackend {
             request.release(RequestReleaseFlags::ALL)?;
 
             let mut response = Response::from_factory(factory)?;
-            response.add_output(output1_name, array.to_owned())?;
+            response.add_output_array(output1_name, array.to_owned())?;
             response.send(ResponseFlags::NONE, None)?;
             // ... send more responses, then:
             factory.send_flags(ResponseFlags::FINAL)?;

@@ -175,10 +175,10 @@ extern "C" fn response_release(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::ptr;
-    use tokio::test;
-
+//  use super::*;
+//  use std::ptr;
+//  use tokio::test;
+//
 //    #[test]
 //    async fn test_executer_creation() {
 //        // Create with null server pointer for test
