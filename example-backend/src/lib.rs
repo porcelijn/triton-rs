@@ -1,8 +1,6 @@
 //! https://github.com/triton-inference-server/backend/blob/main/README.md#triton-backend-api
 
 use futures::executor::block_on;
-use std::ptr;
-use std::slice;
 use triton_rs::Backend;
 use triton_rs::DataType;
 use triton_rs::Model;

@@ -77,7 +77,7 @@ macro_rules! call_checked {
     ($res:expr) => {
         match $res {
             Err(err) => triton_rs::to_TRITONSERVER_Error(err),
-            Ok(ok) => ptr::null(),
+            Ok(ok) => std::ptr::null(),
         }
     };
 }
@@ -138,7 +138,9 @@ macro_rules! declare_backend {
             request_count: u32,
         ) -> *const triton_rs::sys::TRITONSERVER_Error {
                 let instance = triton_rs::ModelInstanceImpl::from_ptr(instance);
-                let requests = unsafe { slice::from_raw_parts(requests, request_count as usize) };
+                let requests = unsafe {
+                    std::slice::from_raw_parts(requests, request_count as usize)
+                };
                 let requests = requests
                     .iter()
                     .map(|req| triton_rs::Request::from_ptr(*req))
