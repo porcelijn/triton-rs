@@ -1,4 +1,4 @@
-use crate::{InferenceRequest, ModelExecuterError};
+use crate::{InferenceRequest, ModelExecutorError};
 use crate::dump_err;
 use std::ptr;
 
@@ -17,14 +17,14 @@ impl Server {
     }
 
     // Start async inference
-    pub fn infer_async(&self, request: &InferenceRequest) -> Result<(), ModelExecuterError> {
+    pub fn infer_async(&self, request: &InferenceRequest) -> Result<(), ModelExecutorError> {
         let err = unsafe {
             triton_sys::TRITONSERVER_ServerInferAsync(self.ptr, request.as_ptr(), ptr::null_mut())
         };
 
         if !err.is_null() {
             dump_err(err);
-            return Err(ModelExecuterError::ExecutionError(
+            return Err(ModelExecutorError::ExecutionError(
                     "Failed to start async inference".to_string(),
                     ));
         }

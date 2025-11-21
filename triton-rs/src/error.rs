@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum ModelExecuterError {
+pub enum ModelExecutorError {
     #[error("Initialization failed: {0}")]
     InitializationError(String),
     #[error("Model loading failed: {0}")]

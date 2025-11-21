@@ -87,7 +87,7 @@ impl Backend for ExampleBackend {
             let output1_name = "output";
 
             let server = model.server()?;
-            let executor = triton_rs::TritonModelExecuter::new(&server)?;
+            let executor = triton_rs::TritonModelExecutor::new(&server)?;
 
             let inference_request =
                 triton_rs::InferenceRequest::new(&server, model_name, model_version)?;
@@ -112,7 +112,7 @@ impl Backend for ExampleBackend {
 
             // executor.execute(&inference_request).await.map_err(|e| {
             //     // Custom error handling logic
-            //     triton_rs::ModelExecuterError::ExecutionError(e)
+            //     triton_rs::ModelExecutorError::ExecutionError(e)
             // })?;
 
             println!(

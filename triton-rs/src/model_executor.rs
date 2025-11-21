@@ -4,26 +4,26 @@ use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
 // use async_trait::async_trait;
-use crate::error::ModelExecuterError;
+use crate::error::ModelExecutorError;
 use crate::{InferenceRequest, InferenceResponse, dump_err};
 use crate::Server;
 use tokio::sync::oneshot;
 
 // // #[async_trait]
-// pub trait ModelExecuter {
-//     fn load_model(&mut self, model_path: &str) -> Result<(), ModelExecuterError>;
+// pub trait ModelExecutor {
+//     fn load_model(&mut self, model_path: &str) -> Result<(), ModelExecutorError>;
 //     async fn execute(
 //         &self,
 //         request: *mut triton_sys::TRITONSERVER_InferenceRequest,
-//     ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, ModelExecuterError>;
+//     ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, ModelExecutorError>;
 // }
 
-pub struct TritonModelExecuter<'a> {
+pub struct ModelExecutor<'a> {
     server: &'a Server,
     allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
 }
 
-impl Drop for TritonModelExecuter<'_> {
+impl Drop for ModelExecutor<'_> {
     fn drop(&mut self) {
         unsafe {
             // Clean up allocator when executor is dropped
@@ -34,8 +34,8 @@ impl Drop for TritonModelExecuter<'_> {
     }
 }
 
-impl<'a> TritonModelExecuter<'a> {
-    pub fn new(server: &'a Server) -> Result<Self, ModelExecuterError> {
+impl<'a> ModelExecutor<'a> {
+    pub fn new(server: &'a Server) -> Result<Self, ModelExecutorError> {
         let mut allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator = ptr::null_mut();
 
         unsafe {
@@ -48,7 +48,7 @@ impl<'a> TritonModelExecuter<'a> {
 
             if !err.is_null() {
                 dump_err(err);
-                return Err(ModelExecuterError::InitializationError(
+                return Err(ModelExecutorError::InitializationError(
                     "Failed to create response allocator".to_string(),
                 ));
             }
@@ -58,11 +58,11 @@ impl<'a> TritonModelExecuter<'a> {
 }
 
 // #[async_trait]
-impl TritonModelExecuter<'_> {
+impl ModelExecutor<'_> {
     pub async fn execute(
         &self,
         request: &InferenceRequest,
-    ) -> Result<InferenceResponse, ModelExecuterError> {
+    ) -> Result<InferenceResponse, ModelExecutorError> {
         let (tx, rx) = oneshot::channel();
         let tx_ptr = Box::into_raw(Box::new(tx));
 
@@ -78,7 +78,7 @@ impl TritonModelExecuter<'_> {
 
             if !err.is_null() {
                 dump_err(err);
-                return Err(ModelExecuterError::ExecutionError(
+                return Err(ModelExecutorError::ExecutionError(
                     "Failed to set response callback".to_string(),
                 ));
             }
@@ -88,7 +88,7 @@ impl TritonModelExecuter<'_> {
 
         // Wait for response
         rx.await.map(InferenceResponse::from_ptr).map_err(|_| {
-            ModelExecuterError::ExecutionError("Failed to receive inference response".to_string())
+            ModelExecutorError::ExecutionError("Failed to receive inference response".to_string())
         })
     }
 }
@@ -180,12 +180,12 @@ mod tests {
 //  use tokio::test;
 //
 //    #[test]
-//    async fn test_executer_creation() {
+//    async fn test_executor_creation() {
 //        // Create with null server pointer for test
 //        let server = Server::from_ptr(ptr::null_mut());
-//        let executer = TritonModelExecuter::new(&server);
-//        assert!(executer.is_ok());
+//        let executor = ModelExecutor::new(&server);
+//        assert!(executor.is_ok());
 //
-//        let executer = executer.unwrap();
+//        let executor = executor.unwrap();
 //    }
 }

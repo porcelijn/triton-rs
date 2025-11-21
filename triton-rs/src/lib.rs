@@ -12,10 +12,10 @@ mod server;
 
 pub use backend::Backend;
 pub use data_type::DataType;
-pub use error::ModelExecuterError;
+pub use error::ModelExecutorError;
 pub use inference_request::InferenceRequest;
 pub use inference_response::InferenceResponse;
-pub use model_executor::TritonModelExecuter;
+pub use model_executor::ModelExecutor;
 pub use model_instance::ModelInstance;
 pub use model_instance::ModelInstanceImpl;
 pub use model::Model;
