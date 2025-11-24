@@ -1,6 +1,8 @@
 use crate::{check_err, DataType, Error, ModelExecutor};
 use std::ffi::CString;
 
+#[cfg(feature = "ndarray")] use ndarray::{Array, IxDyn};
+
 pub struct InferenceRequest {
     ptr: *mut triton_sys::TRITONSERVER_InferenceRequest,
 }
@@ -77,6 +79,20 @@ impl InferenceRequest {
             )
         })?;
         Ok(())
+    }
+
+    #[cfg(feature = "ndarray")]
+    pub fn add_input_array<T>(&self, name: &str, array: Array<T, IxDyn>,
+    ) -> Result<(), Box<dyn std::error::Error>>
+    where T: Copy + crate::data_type::SupportedTypes {
+        let shape: Vec<i64> = array.shape().iter().map(|x| *x as i64).collect();
+        let data_type = <T as crate::data_type::SupportedTypes>::of();
+        assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
+        self.add_input(name, data_type, &shape)?;
+        let data = array.as_raw_ref();
+        let data = unsafe { std::slice::from_raw_parts(data.as_ptr(), data.len()) };
+        let data: &[u8] = unsafe { std::mem::transmute(data) };
+        self.set_input_data(name, data)
     }
 
     pub fn set_request_id(&self, id: &str) -> Result<(), Error> {

@@ -2,7 +2,6 @@
 
 use futures::executor::block_on;
 use triton_rs::Backend;
-use triton_rs::DataType;
 use triton_rs::Model;
 use triton_rs::ModelInstance;
 use triton_rs::RequestReleaseFlags;
@@ -79,10 +78,10 @@ impl Backend for ExampleBackend {
             let prompt = request.get_input("prompt")?;
             let floats = prompt.slice::<f32>()?;
             println!("[EXAMPLE] prompt as f32: {}, len={}", floats[0], floats.len());
-            let array =  prompt.as_array::<f32, 2>()?;
+            let array =  prompt.as_array::<f32, 1>()?;
             println!("[EXAMPLE] prompt as ndarray: {array}");
-            let prompt = prompt.as_string()?;
-            println!("[EXAMPLE] prompt as_string: {prompt}");
+//          let prompt = prompt.as_string()?;
+//          println!("[EXAMPLE] prompt as_string: {prompt}");
 
             // model_excutor
             let request_id = request.get_request_id()?;
@@ -99,12 +98,7 @@ impl Backend for ExampleBackend {
 
             println!("[EXAMPLE] set request id and correlation id finish");
 
-            inference_request.add_input(input1_name, DataType::BYTES, &[1],)?;
-            println!("add input finish");
-
-            let input1_data = vec![b"test_bls_infer_req".as_ptr() as u8; 18];
-            inference_request.set_input_data(input1_name, &input1_data)?;
-
+            inference_request.add_input_array(input1_name, array.to_owned())?;
             inference_request.add_output(output1_name)?;
 
             println!("set input data finish");
@@ -121,11 +115,22 @@ impl Backend for ExampleBackend {
                 infer_response.get_output_count()
             );
 
+            let mut output1 = None;
             for out_idx in 0..infer_response.get_output_count().unwrap() {
                 let output = infer_response.get_output_data(out_idx).unwrap();
                 println!("[EXAMPLE] output: {:?}", out_idx);
-                output.print_info();
+                println!("{output:?}");
+                if output.name == output1_name {
+                    output1 = Some(output);
+                }
             }
+
+            let Some(output1) = output1 else {
+                return Err("Missing output: {output1_name}".into());
+            };
+
+            let output1 = output1.as_array::<f32, 1>();
+            println!("output1 as f32: {output1:?}");
 
             // let mut response = Response::from_request(request)?;
             let factory = &triton_rs::ResponseFactory::from_request(request)?;

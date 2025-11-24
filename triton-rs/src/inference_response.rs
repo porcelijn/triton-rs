@@ -3,6 +3,8 @@ use crate::DataType;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_void};
 
+#[cfg(feature = "ndarray")] use ndarray::{ArrayView, IntoDimension, IxDyn};
+
 pub struct InferenceResponse {
     ptr: *mut triton_sys::TRITONSERVER_InferenceResponse,
 }
@@ -89,13 +91,31 @@ impl OutputData {
         }
     }
 
-    pub fn print_info(&self) {
-        println!(
+    #[cfg(feature="ndarray")]
+    pub fn as_array<T, const N: usize>(&self)
+            -> Result<ArrayView<T, IxDyn>, Box<dyn std::error::Error>>
+            where T: crate::data_type::SupportedTypes {
+        assert!(<T as crate::data_type::SupportedTypes>::of() == self.data_type);
+        assert!(N == self.shape.len());
+        const { assert!( N < 6) };
+        let shape: Vec<usize> = self.shape.iter().map(|&x| x as usize).collect();
+        let shape = shape.into_dimension();
+        let data: &[u8] = &self.data;
+        let data: &[T] = unsafe { std::mem::transmute(data) };
+        let array: ArrayView<T, IxDyn> = ArrayView::from_shape(shape, data)?;
+        Ok(array)
+    }
+}
+
+impl std::fmt::Debug for OutputData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f,
             "name: {:?}, datatype: {:?}, shape: {:?}, data len: {:?}, memory_type: {:?}, memory_type_id: {:?}",
-            self.name, self.data_type, self.shape, self.data.len(), self.memory_type, self.memory_type_id);
+            self.name, self.data_type, self.shape, self.data.len(), self.memory_type, self.memory_type_id)?;
         if self.data_type == DataType::BYTES {
-            println!("data: {:?}", String::from_utf8_lossy(&self.data));
+            write!(f, ", data: {:?}", String::from_utf8_lossy(&self.data))?;
         }
+        Ok(())
     }
 }
 
