@@ -31,3 +31,9 @@ impl Server {
         Ok(())
     }
 }
+
+impl std::fmt::Debug for Server {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        todo!()
+    }
+}

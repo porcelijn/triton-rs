@@ -1,4 +1,4 @@
-use crate::{check_err, DataType, Error, Server};
+use crate::{check_err, DataType, Error, ModelExecutor};
 use std::ffi::CString;
 
 pub struct InferenceRequest {
@@ -14,19 +14,14 @@ impl InferenceRequest {
         self.ptr
     }
 
-    pub fn new(
-        server: &Server,
-        model_name: &str,
-        model_version: i64,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        let cstr_model_name = CString::new(model_name)?;
+    pub fn new(executor: &ModelExecutor) -> Result<Self, Box<dyn std::error::Error>> {
         let mut request: *mut triton_sys::TRITONSERVER_InferenceRequest = std::ptr::null_mut();
         check_err(unsafe {
             triton_sys::TRITONSERVER_InferenceRequestNew(
                 &mut request,
-                server.as_ptr(),
-                cstr_model_name.as_ptr(),
-                model_version,
+                executor.server.as_ptr(),
+                executor.model_name.as_ptr(),
+                executor.model_version,
             )
         })?;
         Ok(Self { ptr: request })

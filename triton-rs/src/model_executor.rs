@@ -18,12 +18,14 @@ use tokio::sync::oneshot;
 //     ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, ModelExecutorError>;
 // }
 
-pub struct ModelExecutor<'a> {
-    server: &'a Server,
+pub struct ModelExecutor {
+    pub(crate) server: Server,
+    pub(crate) model_name: CString,
+    pub(crate) model_version: i64,
     allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator,
 }
 
-impl Drop for ModelExecutor<'_> {
+impl Drop for ModelExecutor {
     fn drop(&mut self) {
         unsafe {
             // Clean up allocator when executor is dropped
@@ -34,9 +36,19 @@ impl Drop for ModelExecutor<'_> {
     }
 }
 
-impl<'a> ModelExecutor<'a> {
-    pub fn new(server: &'a Server) -> Result<Self, ModelExecutorError> {
-        let mut allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator = ptr::null_mut();
+impl std::fmt::Debug for ModelExecutor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}:{}", self.model_name, self.model_version)
+    }
+}
+
+impl ModelExecutor {
+    pub fn new(
+        server: Server,
+        model_name: &str,
+        model_version: i64,
+    ) -> Result<Self, ModelExecutorError> {
+         let mut allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator = ptr::null_mut();
 
         unsafe {
             let err = triton_sys::TRITONSERVER_ResponseAllocatorNew(
@@ -53,12 +65,15 @@ impl<'a> ModelExecutor<'a> {
                 ));
             }
         }
-        Ok(Self { server, allocator })
+        let Ok(model_name) = CString::new(model_name) else { return
+            Err(ModelExecutorError::InitializationError(
+                    "Failed to allcate CString".to_string()))};
+        Ok(Self { server, model_name, model_version, allocator })
     }
 }
 
 // #[async_trait]
-impl ModelExecutor<'_> {
+impl ModelExecutor {
     pub async fn execute(
         &self,
         request: &InferenceRequest,

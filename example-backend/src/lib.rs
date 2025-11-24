@@ -18,29 +18,37 @@ impl InstanceState {
     }
 }
 
-#[derive(Debug, Default)]
-struct ModelState;
+#[derive(Debug)]
+struct SubModelExecutor(triton_rs::ModelExecutor);
 
-impl ModelState {
-    fn read_setting(&self) -> &'static str { "foo" }
+impl SubModelExecutor {
+    fn new(model: &triton_rs::ModelImpl<SubModelExecutor>,
+           model_name: &str,
+           model_version: i64) -> Result<Self, triton_rs::Error> {
+        let server = model.server()?;
+        let executor = triton_rs::ModelExecutor::new(
+            server, model_name, model_version)?;
+        Ok(Self(executor))
+    }
 }
 
 struct ExampleBackend;
 
 impl Backend for ExampleBackend {
     type ModelInstanceState = InstanceState;
-    type ModelState = ModelState;
+    type ModelState = SubModelExecutor;
 
     fn model_initialize(
-            model: triton_rs::ModelImpl<ModelState>
+            model: triton_rs::ModelImpl<SubModelExecutor>
     ) -> Result<(), triton_rs::Error> {
-        let previous = model.replace_state(Some(ModelState::default()))?;
+        let sub_model_executor = SubModelExecutor::new(&model, "test", 1)?;
+        let previous = model.replace_state(Some(sub_model_executor))?;
         assert!(previous.is_none());
         Ok(())
     }
 
     fn model_instance_initialize(
-            model_instance: triton_rs::ModelInstanceImpl<InstanceState, ModelState>
+            model_instance: triton_rs::ModelInstanceImpl<InstanceState, SubModelExecutor>
     ) -> Result<(), triton_rs::Error> {
         let previous = model_instance.replace_state(Some(InstanceState::default()))?;
         assert!(previous.is_none());
@@ -48,20 +56,20 @@ impl Backend for ExampleBackend {
     }
 
     fn model_instance_execute(
-        model_instance: triton_rs::ModelInstanceImpl<InstanceState, ModelState>,
+        model_instance: triton_rs::ModelInstanceImpl<InstanceState, SubModelExecutor>,
         requests: &[triton_rs::Request],
     ) -> Result<(), triton_rs::Error> {
         let state = model_instance.state()?;
         state.change();
         println!("[EXAMPLE] model_instance_execute ({state:?}");
 
-        let model: triton_rs::ModelImpl<ModelState> = model_instance.model()?;
+        let model: triton_rs::ModelImpl<SubModelExecutor> = model_instance.model()?;
 
         println!("[EXAMPLE] model config: {:?}", model.model_config()?);
-        let model_setting = model.state()?.read_setting();
+        let executor = &model.state()?.0;
 
         println!(
-            "[EXAMPLE] request for model {} {} {} {model_setting}",
+            "[EXAMPLE] request for model {} {} {} {executor:?}",
             model.name()?,
             model.version()?,
             model.location()?
@@ -81,16 +89,9 @@ impl Backend for ExampleBackend {
             println!("[EXAMPLE] request_id: {}", request_id);
             let correlation_id = request.get_correlation_id()?;
             println!("[EXAMPLE] correlation_id: {}", correlation_id);
-            let model_name = "test";
-            let model_version = 1;
             let input1_name = "prompt";
             let output1_name = "output";
-
-            let server = model.server()?;
-            let executor = triton_rs::TritonModelExecutor::new(&server)?;
-
-            let inference_request =
-                triton_rs::InferenceRequest::new(&server, model_name, model_version)?;
+            let inference_request = triton_rs::InferenceRequest::new(&executor)?;
 
             inference_request.set_request_id(request_id.as_str())?;
             inference_request.set_correlation_id(correlation_id)?;
