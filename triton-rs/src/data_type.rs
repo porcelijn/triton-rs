@@ -77,9 +77,12 @@ pub trait SupportedTypes : Clone { fn of() -> DataType { DataType::INVALID } }
 impl SupportedTypes for bool { fn of() -> DataType { DataType::BOOL } }
 //impl SupportedTypes for u8 { fn of() -> DataType { DataType::UINT8 } }
 // ...
+impl SupportedTypes for u32 { fn of() -> DataType { DataType::UINT32 } }
 impl SupportedTypes for u64 { fn of() -> DataType { DataType::UINT64 } }
+impl SupportedTypes for i32 { fn of() -> DataType { DataType::INT32 } }
 impl SupportedTypes for i64 { fn of() -> DataType { DataType::INT64 } }
 impl SupportedTypes for f32 { fn of() -> DataType { DataType::FP32 } }
+impl SupportedTypes for f64 { fn of() -> DataType { DataType::FP64 } }
 // ...
 //impl SupportedTypes for &str { fn of() -> DataType { DataType::BYTES } }
 impl SupportedTypes for u8 { fn of() -> DataType { DataType::BYTES } } // fixme

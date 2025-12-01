@@ -1,6 +1,5 @@
 mod backend;
 mod data_type;
-mod error;
 mod inference_request;
 mod inference_response;
 mod model;
@@ -12,7 +11,6 @@ mod server;
 
 pub use backend::Backend;
 pub use data_type::DataType;
-pub use error::ModelExecutorError;
 pub use inference_request::InferenceRequest;
 pub use inference_response::InferenceResponse;
 pub use model_executor::ModelExecutor;
@@ -44,36 +42,11 @@ pub fn to_TRITONSERVER_Error(err: Error) -> *const triton_sys::TRITONSERVER_Erro
 
 pub(crate) fn check_err(err: *mut triton_sys::TRITONSERVER_Error) -> Result<(), Error> {
     if !err.is_null() {
-        unsafe{
-            let err_msg = triton_sys::TRITONSERVER_ErrorCodeString(err);
-            eprintln!(
-                "check err : {:?}",
-                std::ffi::CStr::from_ptr(err_msg)
-            );
-            triton_sys::TRITONSERVER_ErrorDelete(err);
-        }
-
-        let code = unsafe { triton_sys::TRITONSERVER_ErrorCode(err) };
-        Err(format!(
-            "TRITONBACKEND_ModelInstanceModel returned error code {}",
-            code
-        )
-        .into())
+        let error = into_error(err);
+        eprintln!("check err: {error}");
+        Err(error)
     } else {
         Ok(())
-    }
-}
-
-pub(crate) fn dump_err(err: *mut triton_sys::TRITONSERVER_Error) {
-    if !err.is_null() {
-        unsafe{
-            let err_msg = triton_sys::TRITONSERVER_ErrorCodeString(err);
-            eprintln!(
-                "check err : {:?}",
-                std::ffi::CStr::from_ptr(err_msg)
-            );
-            triton_sys::TRITONSERVER_ErrorDelete(err);
-        }
     }
 }
 
@@ -117,3 +90,16 @@ pub fn encode_string(value: &str) -> Vec<u8> {
 
     bytes
 }
+
+fn into_error(err: *mut triton_sys::TRITONSERVER_Error) -> Error {
+    // extract code and null terminated description from TRITONSERVER_Error
+    let code = unsafe { triton_sys::TRITONSERVER_ErrorCode(err) };
+    let c_msg_ptr = unsafe { triton_sys::TRITONSERVER_ErrorCodeString(err) };
+    let msg = &unsafe { std::ffi::CStr::from_ptr(c_msg_ptr) };
+    // Clean up heap-allocated TRITONSERVER_Error object (created by callee)
+    unsafe {
+        triton_sys::TRITONSERVER_ErrorDelete(err);
+    }
+    format!("TRITONSERVER_Error: {msg:?} ({code})").into()
+}
+

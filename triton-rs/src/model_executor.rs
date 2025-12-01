@@ -4,18 +4,17 @@ use std::ffi::CString;
 use std::os::raw::c_void;
 use std::ptr;
 // use async_trait::async_trait;
-use crate::error::ModelExecutorError;
-use crate::{InferenceRequest, InferenceResponse, dump_err};
+use crate::{check_err, Error, InferenceRequest, InferenceResponse};
 use crate::Server;
 use tokio::sync::oneshot;
 
 // // #[async_trait]
 // pub trait ModelExecutor {
-//     fn load_model(&mut self, model_path: &str) -> Result<(), ModelExecutorError>;
+//     fn load_model(&mut self, model_path: &str) -> Result<(), Error>;
 //     async fn execute(
 //         &self,
 //         request: *mut triton_sys::TRITONSERVER_InferenceRequest,
-//     ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, ModelExecutorError>;
+//     ) -> Result<*mut triton_sys::TRITONSERVER_InferenceResponse, Error>;
 // }
 
 pub struct ModelExecutor {
@@ -47,27 +46,18 @@ impl ModelExecutor {
         server: Server,
         model_name: &str,
         model_version: i64,
-    ) -> Result<Self, ModelExecutorError> {
-         let mut allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator = ptr::null_mut();
-
-        unsafe {
-            let err = triton_sys::TRITONSERVER_ResponseAllocatorNew(
+    ) -> Result<Self, Error> {
+        let mut allocator: *mut triton_sys::TRITONSERVER_ResponseAllocator = ptr::null_mut();
+        check_err(unsafe {
+            triton_sys::TRITONSERVER_ResponseAllocatorNew(
                 &mut allocator,
                 Some(response_alloc),
                 Some(response_release),
                 None,
-            );
-
-            if !err.is_null() {
-                dump_err(err);
-                return Err(ModelExecutorError::InitializationError(
-                    "Failed to create response allocator".to_string(),
-                ));
-            }
-        }
-        let Ok(model_name) = CString::new(model_name) else { return
-            Err(ModelExecutorError::InitializationError(
-                    "Failed to allcate CString".to_string()))};
+        )})?;
+        let Ok(model_name) = CString::new(model_name) else {
+            return Err("Failed to allcate CString".into())
+        };
         Ok(Self { server, model_name, model_version, allocator })
     }
 }
@@ -77,34 +67,24 @@ impl ModelExecutor {
     pub async fn execute(
         &self,
         request: &InferenceRequest,
-    ) -> Result<InferenceResponse, ModelExecutorError> {
+    ) -> Result<InferenceResponse, Error> {
         let (tx, rx) = oneshot::channel();
         let tx_ptr = Box::into_raw(Box::new(tx));
 
-        unsafe {
+        check_err(unsafe {
             // Set response callback
-            let err = triton_sys::TRITONSERVER_InferenceRequestSetResponseCallback(
+            triton_sys::TRITONSERVER_InferenceRequestSetResponseCallback(
                 request.as_ptr(),
                 self.allocator,
                 ptr::null_mut(),
                 Some(infer_response_complete),
                 tx_ptr as *mut c_void,
-            );
-
-            if !err.is_null() {
-                dump_err(err);
-                return Err(ModelExecutorError::ExecutionError(
-                    "Failed to set response callback".to_string(),
-                ));
-            }
-        }
+        )})?;
 
         self.server.infer_async(request)?;
 
         // Wait for response
-        rx.await.map(InferenceResponse::from_ptr).map_err(|_| {
-            ModelExecutorError::ExecutionError("Failed to receive inference response".to_string())
-        })
+        Ok(rx.await.map(InferenceResponse::from_ptr)?)
     }
 }
 

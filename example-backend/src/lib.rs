@@ -90,7 +90,7 @@ impl Backend for ExampleBackend {
             println!("[EXAMPLE] correlation_id: {}", correlation_id);
             let input1_name = "prompt";
             let output1_name = "output";
-            let inference_request = triton_rs::InferenceRequest::new(&executor)?;
+            let inference_request = triton_rs::InferenceRequest::new(executor)?;
 
             inference_request.set_request_id(request_id.as_str())?;
             inference_request.set_correlation_id(correlation_id)?;
