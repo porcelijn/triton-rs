@@ -54,6 +54,7 @@ impl OutputData {
             let mut byte_size: usize = 0;
             let mut memory_type = triton_sys::TRITONSERVER_memorytype_enum_TRITONSERVER_MEMORY_CPU;
             let mut memory_type_id: i64 = 0;
+            let mut user_ptr: *mut c_void = std::ptr::null_mut();
 
             let err = triton_sys::TRITONSERVER_InferenceResponseOutput(
                 response,
@@ -66,7 +67,7 @@ impl OutputData {
                 &mut byte_size,
                 &mut memory_type,
                 &mut memory_type_id,
-                std::ptr::null_mut(),
+                &mut user_ptr,
             );
 
             if !err.is_null() {
