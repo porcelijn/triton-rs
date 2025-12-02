@@ -111,24 +111,11 @@ impl Backend for ExampleBackend {
             // })?;
 
             println!(
-                "[EXAMPLE] inference_response output : {:?}",
+                "[EXAMPLE] inference_response output : {}",
                 infer_response.get_output_count()
             );
 
-            let mut output1 = None;
-            for out_idx in 0..infer_response.get_output_count().unwrap() {
-                let output = infer_response.get_output_data(out_idx).unwrap();
-                println!("[EXAMPLE] output: {:?}", out_idx);
-                println!("{output:?}");
-                if output.name == output1_name {
-                    output1 = Some(output);
-                }
-            }
-
-            let Some(output1) = output1 else {
-                return Err("Missing output: {output1_name}".into());
-            };
-
+            let output1 = infer_response.get_output_data(output1_name)?;
             let output1 = output1.as_array::<f32, 1>();
             println!("output1 as f32: {output1:?}");
 

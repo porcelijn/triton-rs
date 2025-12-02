@@ -1,21 +1,22 @@
-use crate::check_err;
-use crate::DataType;
+use crate::{DataType, Error};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_void};
+use std::collections::HashMap;
 
 #[cfg(feature = "ndarray")] use ndarray::{ArrayView, IntoDimension, IxDyn};
 
-pub struct InferenceResponse {
+mod detail {
+
+  use crate::check_err;
+  use super::OutputData;
+
+  pub (crate) struct InferenceResponse {
     ptr: *mut triton_sys::TRITONSERVER_InferenceResponse,
-}
+  }
 
-impl InferenceResponse {
-    pub fn from_ptr(ptr: *mut triton_sys::TRITONSERVER_InferenceResponse) -> Self {
+  impl InferenceResponse {
+    pub (crate) fn from_ptr(ptr: *mut triton_sys::TRITONSERVER_InferenceResponse) -> Self {
         Self { ptr }
-    }
-
-    pub fn as_ptr(&self) -> *mut triton_sys::TRITONSERVER_InferenceResponse {
-        self.ptr
     }
 
     pub fn get_output_count(&self) -> Result<u32, Box<dyn std::error::Error>> {
@@ -28,6 +29,37 @@ impl InferenceResponse {
 
     pub fn get_output_data(&self, out_idx: u32) -> Result<OutputData, Box<dyn std::error::Error>> {
         OutputData::get_output_data(self.ptr, out_idx)
+    }
+  }
+
+} // detail
+
+pub struct InferenceResponse {
+    outputs: HashMap<String, OutputData>,
+}
+
+impl InferenceResponse {
+    pub fn from_ptr(ptr: *mut triton_sys::TRITONSERVER_InferenceResponse) -> Result<Self, Error> {
+        let helper = detail::InferenceResponse::from_ptr(ptr);
+        let count = helper.get_output_count()?;
+        let mut outputs = HashMap::with_capacity(count.try_into()?);
+        for index in 0..count {
+            let data = helper.get_output_data(index)?;
+            outputs.insert(data.name.clone(), data);
+        }
+        Ok(Self { outputs })
+    }
+
+    pub fn get_output_count(&self) -> usize {
+        self.outputs.len()
+    }
+
+    pub fn get_output_data(&self, name: &str) -> Result<&OutputData, Error> {
+        self.outputs.get(name).ok_or(format!("failed to find output {name}").into())
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &OutputData> {
+        self.outputs.values()
     }
 }
 
@@ -44,7 +76,7 @@ impl OutputData {
     pub fn get_output_data(
         response: *mut triton_sys::TRITONSERVER_InferenceResponse,
         out_idx: u32,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Error> {
         unsafe {
             let mut name_ptr: *const c_char = std::ptr::null();
             let mut datatype = triton_sys::TRITONSERVER_datatype_enum_TRITONSERVER_TYPE_FP32;
@@ -94,7 +126,7 @@ impl OutputData {
 
     #[cfg(feature="ndarray")]
     pub fn as_array<T, const N: usize>(&self)
-            -> Result<ArrayView<T, IxDyn>, Box<dyn std::error::Error>>
+            -> Result<ArrayView<T, IxDyn>, Error>
             where T: crate::data_type::SupportedTypes {
         assert!(<T as crate::data_type::SupportedTypes>::of() == self.data_type);
         assert!(N == self.shape.len());

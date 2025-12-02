@@ -84,7 +84,7 @@ impl ModelExecutor {
         self.server.infer_async(request)?;
 
         // Wait for response
-        Ok(rx.await.map(InferenceResponse::from_ptr)?)
+        rx.await.map(InferenceResponse::from_ptr)?
     }
 }
 
