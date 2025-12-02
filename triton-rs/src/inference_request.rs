@@ -89,10 +89,7 @@ impl InferenceRequest {
         let data_type = <T as crate::data_type::SupportedTypes>::of();
         assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
         self.add_input(name, data_type, &shape)?;
-        let data = array.as_raw_ref();
-        let data = unsafe { std::slice::from_raw_parts(data.as_ptr(), data.len()) };
-        let data: &[u8] = unsafe { std::mem::transmute(data) };
-        self.set_input_data(name, data)
+        self.set_input_data(name, get_raw_bytes(&array))
     }
 
     pub fn set_request_id(&self, id: &str) -> Result<(), Error> {
@@ -127,17 +124,21 @@ extern "C" fn infer_request_complete(
     _flags: u32,
     _userp: *mut ::std::os::raw::c_void,
 ) {
-    unsafe {
-        if !request.is_null() {
-            let err = triton_sys::TRITONSERVER_InferenceRequestDelete(request);
-            if !err.is_null() {
-                let err_msg = triton_sys::TRITONSERVER_ErrorCodeString(err);
-                eprintln!(
-                    "Failed to delete inference request: {:?}",
-                    std::ffi::CStr::from_ptr(err_msg)
-                );
-                triton_sys::TRITONSERVER_ErrorDelete(err);
-            }
+    if !request.is_null() {
+        let result = check_err(unsafe {
+            triton_sys::TRITONSERVER_InferenceRequestDelete(request)
+        });
+        if let Err(error) = result {
+            println!("Failed to delete InferenceRequest: {error:?}");
         }
     }
+}
+
+fn get_raw_bytes<T>(array: &Array<T, IxDyn>) -> &[u8] {
+    let data = array.as_raw_ref();
+    let byte_ptr = data.as_ptr() as *const u8;
+    let byte_len = data.len() * std::mem::size_of::<T>();
+    let data = unsafe { std::slice::from_raw_parts(byte_ptr, byte_len) };
+    let data: &[u8] = unsafe { std::mem::transmute(data) };
+    data
 }
