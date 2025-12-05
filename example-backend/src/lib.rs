@@ -40,7 +40,7 @@ impl Backend for ExampleBackend {
     fn model_initialize(
             model: triton_rs::ModelImpl<SubModelExecutor>
     ) -> Result<(), triton_rs::Error> {
-        let sub_model_executor = SubModelExecutor::new(&model, "test", 1)?;
+        let sub_model_executor = SubModelExecutor::new(&model, "passthrough", 1)?;
         let previous = model.replace_state(Some(sub_model_executor))?;
         assert!(previous.is_none());
         Ok(())
@@ -78,7 +78,7 @@ impl Backend for ExampleBackend {
             let prompt = request.get_input("prompt")?;
             let floats = prompt.slice::<f32>()?;
             println!("[EXAMPLE] prompt as f32: {}, len={}", floats[0], floats.len());
-            let array =  prompt.as_array::<f32, 1>()?;
+            let array =  prompt.as_array::<f32, 1>()?.to_owned();
             println!("[EXAMPLE] prompt as ndarray: {array}");
 //          let prompt = prompt.as_string()?;
 //          println!("[EXAMPLE] prompt as_string: {prompt}");
@@ -88,8 +88,8 @@ impl Backend for ExampleBackend {
             println!("[EXAMPLE] request_id: {}", request_id);
             let correlation_id = request.get_correlation_id()?;
             println!("[EXAMPLE] correlation_id: {}", correlation_id);
-            let input1_name = "prompt";
-            let output1_name = "output";
+            let input1_name = "INPUT";
+            let output1_name = "OUTPUT";
             let inference_request = triton_rs::InferenceRequest::new(executor)?;
 
             inference_request.set_request_id(request_id.as_str())?;
@@ -97,11 +97,8 @@ impl Backend for ExampleBackend {
             inference_request.set_release_callback()?;
 
             println!("[EXAMPLE] set request id and correlation id finish");
-
-            inference_request.add_input_array(input1_name, array.to_owned())?;
+            inference_request.add_input_array(input1_name, &array)?;
             inference_request.add_output(output1_name)?;
-
-            println!("set input data finish");
 
             let infer_response = block_on(executor.execute(&inference_request))?;
 
@@ -116,8 +113,10 @@ impl Backend for ExampleBackend {
             );
 
             let output1 = infer_response.get_output_data(output1_name)?;
+            println!("[EXAMPLE] sub-model returned: {output1:?}");
             let output1 = output1.as_array::<f32, 1>();
-            println!("output1 as f32: {output1:?}");
+            println!("[EXAMPLE] {output1_name} as Array1<f32>: {output1:?}");
+            let output1 = output1?.to_owned();
 
             // let mut response = Response::from_request(request)?;
             let factory = &triton_rs::ResponseFactory::from_request(request)?;
@@ -125,7 +124,7 @@ impl Backend for ExampleBackend {
             request.release(RequestReleaseFlags::ALL)?;
 
             let mut response = Response::from_factory(factory)?;
-            response.add_output_array(output1_name, array.to_owned())?;
+            response.add_output_array("output", output1)?;
             response.send(ResponseFlags::NONE, None)?;
             // ... send more responses, then:
             factory.send_flags(ResponseFlags::FINAL)?;

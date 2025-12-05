@@ -67,7 +67,7 @@ impl InferenceRequest {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let cstr_name = CString::new(name)?;
         let c_data_ptr = data.as_ptr() as *const std::os::raw::c_void;
-        let data_memory_id = 0;
+        let data_memory_id: i64 = 0;
         check_err(unsafe {
             triton_sys::TRITONSERVER_InferenceRequestAppendInputData(
                 self.ptr,
@@ -75,21 +75,21 @@ impl InferenceRequest {
                 c_data_ptr,
                 data.len(),
                 triton_sys::TRITONSERVER_memorytype_enum_TRITONSERVER_MEMORY_CPU,
-                data_memory_id as i64,
+                data_memory_id,
             )
         })?;
         Ok(())
     }
 
     #[cfg(feature = "ndarray")]
-    pub fn add_input_array<T>(&self, name: &str, array: Array<T, IxDyn>,
+    pub fn add_input_array<T>(&self, name: &str, array: &Array<T, IxDyn>,
     ) -> Result<(), Box<dyn std::error::Error>>
     where T: Copy + crate::data_type::SupportedTypes {
         let shape: Vec<i64> = array.shape().iter().map(|x| *x as i64).collect();
         let data_type = <T as crate::data_type::SupportedTypes>::of();
         assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
         self.add_input(name, data_type, &shape)?;
-        self.set_input_data(name, get_raw_bytes(&array))
+        self.set_input_data(name, get_raw_bytes(array))
     }
 
     pub fn set_request_id(&self, id: &str) -> Result<(), Error> {
