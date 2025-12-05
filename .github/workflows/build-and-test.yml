@@ -1,0 +1,20 @@
+name: Build and Regression test
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-and-test.yml'
+      - 'Dockerfile'
+      - 'integration-test.sh'
+      - 'triton-rs/**'
+      - 'example-backend/**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Build and Test
+      run: docker build --rm .
+
