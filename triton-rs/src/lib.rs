@@ -30,7 +30,7 @@ pub use triton_sys as sys;
 pub type Error = Box<dyn std::error::Error>;
 
 #[allow(non_snake_case)]
-pub fn to_TRITONSERVER_Error(err: Error) -> *const triton_sys::TRITONSERVER_Error {
+pub fn to_TRITONSERVER_Error(err: Error) -> *mut triton_sys::TRITONSERVER_Error {
     let err = std::ffi::CString::new(err.to_string()).expect("CString::new failed");
     unsafe {
         triton_sys::TRITONSERVER_ErrorNew(

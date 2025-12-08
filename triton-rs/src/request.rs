@@ -80,7 +80,7 @@ impl<'a> Input {
     pub fn slice<T>(&self) -> Result<&[T], Error> {
         let mut buffer: *const c_void = ptr::null_mut();
         let index = 0;
-        let mut memory_type: triton_sys::TRITONSERVER_MemoryType = 0;
+        let mut memory_type = triton_sys::TRITONSERVER_memorytype_enum_TRITONSERVER_MEMORY_CPU;
         let mut memory_type_id = 0;
         let mut buffer_byte_size = 0;
         check_err(unsafe {

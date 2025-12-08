@@ -79,7 +79,9 @@ impl Response {
         let data_type = <T as SupportedTypes>::of();
         assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
         let mut output = self.output(name, data_type, shape)?;
-        output.set_data(data)?;
+        if data.len() > 0 {
+            output.set_data(data)?;
+        }
         Ok(())
     }
 
@@ -115,7 +117,7 @@ impl Output {
         let mut buffer: *mut c_void = ptr::null_mut();
         let element_len = data.len();
         let buffer_byte_size = std::mem::size_of_val(data) as u64;
-        let mut memory_type: triton_sys::TRITONSERVER_MemoryType = 0;
+        let mut memory_type = triton_sys::TRITONSERVER_memorytype_enum_TRITONSERVER_MEMORY_CPU;
         let mut memory_type_id = 0;
         check_err(unsafe {
             triton_sys::TRITONBACKEND_OutputBuffer(
@@ -126,6 +128,10 @@ impl Output {
                 &mut memory_type_id,
             )
         })?;
+
+        if buffer.is_null() {
+            return Err("Failed to allocate output buffer".into());
+        }
 
         let mem: &mut [T] = unsafe {
             slice::from_raw_parts_mut(buffer as *mut T, element_len)
