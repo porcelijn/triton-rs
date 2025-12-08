@@ -72,7 +72,7 @@ pub struct OutputData {
     pub memory_type_id: i64,
 }
 
-impl OutputData {
+impl<'a> OutputData {
     pub fn get_output_data(
         response: *mut triton_sys::TRITONSERVER_InferenceResponse,
         out_idx: u32,
@@ -125,16 +125,15 @@ impl OutputData {
     }
 
     #[cfg(feature="ndarray")]
-    pub fn as_array<T, const N: usize>(&self)
-            -> Result<ArrayView<T, IxDyn>, Error>
+    pub fn as_array<T, const N: usize>(&'a self)
+            -> Result<ArrayView<'a, T, IxDyn>, Error>
             where T: crate::data_type::SupportedTypes {
         assert!(<T as crate::data_type::SupportedTypes>::of() == self.data_type);
         assert!(N == self.shape.len());
         const { assert!( N < 6) };
         let shape: Vec<usize> = self.shape.iter().map(|&x| x as usize).collect();
         let shape = shape.into_dimension();
-        let data: &[u8] = &self.data;
-        let data: &[T] = unsafe { std::mem::transmute(data) };
+        let data = byte_slice_to::<T>(&self.data);
         let array: ArrayView<T, IxDyn> = ArrayView::from_shape(shape, data)?;
         Ok(array)
     }
@@ -145,10 +144,48 @@ impl std::fmt::Debug for OutputData {
         write!(f,
             "name: {:?}, datatype: {:?}, shape: {:?}, data len: {:?}, memory_type: {:?}, memory_type_id: {:?}",
             self.name, self.data_type, self.shape, self.data.len(), self.memory_type, self.memory_type_id)?;
-        if self.data_type == DataType::BYTES {
-            write!(f, ", data: {:?}", String::from_utf8_lossy(&self.data))?;
+        match self.data_type {
+            DataType::BYTES => {
+                write!(f, ", data: {:?}", String::from_utf8_lossy(&self.data))?;
+            },
+            DataType::FP32 => {
+                write!(f, ", data: {:?}", byte_slice_to::<f32>(&self.data))?;
+            },
+            // ..
+            _ => {
+                write!(f, ", bytes: {:?}", &self.data)?;
+            },
         }
         Ok(())
     }
 }
 
+#[cfg(feature="ndarray")]
+fn byte_slice_to<T>(bytes: &[u8]) -> &[T] {
+    let data = bytes.as_ptr() as *const T;
+    let len = bytes.len();
+    let size = std::mem::size_of::<T>();
+    assert!(len % size == 0);
+    let slice = unsafe { std::slice::from_raw_parts(data, len / size) };
+    slice
+}
+
+#[test]
+#[cfg(feature="ndarray")]
+fn test_byte_slice_to() {
+    let data: [u8; 12] = [ 0, 0, 0, 0, 1, 2, 3, 4, 246, 0, 255, 255 ];
+    // identity
+    assert_eq!(12, byte_slice_to::<u8>(&data).len());
+    assert_eq!(&data, byte_slice_to::<u8>(&data));
+    // unsigned short
+    assert_eq!(6, byte_slice_to::<u16>(&data).len());
+    #[cfg(target_endian="big")]
+    assert_eq!(&[0, 0, 258, 772, 62976, 65535], byte_slice_to::<u16>(&data));
+    #[cfg(target_endian="little")]
+    assert_eq!(&[0, 0, 513, 1027, 246, 65535], byte_slice_to::<u16>(&data));
+    // float
+    assert_eq!(3, byte_slice_to::<f32>(&data).len());
+    assert_eq!(0.0, byte_slice_to::<f32>(&data)[0]);
+    assert_eq!(0.0, byte_slice_to::<f32>(&data)[1] - 1.53998969e-36);
+    assert!(byte_slice_to::<f32>(&data)[2].is_nan());
+}

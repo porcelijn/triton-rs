@@ -42,7 +42,7 @@ impl Backend for ExampleBackend {
             // let response = Response::from_factory(factory)?;
             // request.release();
             response.add_output("output", &shape, data);
-            // or: response.add_output("output", tensor);
+            // or: response.add_output_array("output", tensor);
             response.send();
         }
 

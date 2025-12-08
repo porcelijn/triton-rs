@@ -72,7 +72,7 @@ impl Request {
 pub struct Input {
     ptr: *mut triton_sys::TRITONBACKEND_Input,
 }
-impl Input {
+impl<'a> Input {
     pub fn from_ptr(ptr: *mut triton_sys::TRITONBACKEND_Input) -> Self {
         Self { ptr }
     }
@@ -126,7 +126,7 @@ impl Input {
     }
 
     #[cfg(feature="ndarray")]
-    pub fn as_array<T, const N: usize>(&self) -> Result<ArrayView<T, IxDyn>, Error>
+    pub fn as_array<T, const N: usize>(&'a self) -> Result<ArrayView<'a, T, IxDyn>, Error>
             where T: SupportedTypes {
         let properties = self.properties()?;
         assert!(<T as SupportedTypes>::of() == properties.datatype);
