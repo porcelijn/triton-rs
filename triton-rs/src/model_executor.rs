@@ -90,19 +90,22 @@ impl ModelExecutor {
 }
 
 // FFI callback functions
+// Oneshot channel does not support decoupled models
+// We expect (exactly) ONE call in response to one inference request, with non-null
+// response param and flags indicating TRITONSERVER_RESPONSE_COMPLETE_FINAL
 extern "C" fn infer_response_complete(
     response: *mut triton_sys::TRITONSERVER_InferenceResponse,
-    _flags: u32,
+    flags: u32,
     userp: *mut c_void,
 ) {
-    if !response.is_null() {
-        let tx = unsafe {
-            Box::from_raw(
-                userp as *mut oneshot::Sender<*mut triton_sys::TRITONSERVER_InferenceResponse>,
-            )
-        };
-        let _ = tx.send(response);
-    }
+    assert!(flags & crate::ResponseFlags::FINAL as u32 != 0);
+    assert!(!response.is_null());
+    let tx = unsafe {
+        Box::from_raw(
+            userp as *mut oneshot::Sender<*mut triton_sys::TRITONSERVER_InferenceResponse>,
+        )
+    };
+    let _ = tx.send(response);
 }
 
 extern "C" fn response_alloc(
