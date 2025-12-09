@@ -90,14 +90,14 @@ impl Backend for ExampleBackend {
             println!("[EXAMPLE] correlation_id: {}", correlation_id);
             let input1_name = "INPUT";
             let output1_name = "OUTPUT";
-            let inference_request = triton_rs::InferenceRequest::new(executor)?;
+            let mut inference_request = triton_rs::InferenceRequest::new(executor)?;
 
             inference_request.set_request_id(request_id.as_str())?;
             inference_request.set_correlation_id(correlation_id)?;
             inference_request.set_release_callback()?;
 
             println!("[EXAMPLE] set request id and correlation id finish");
-            inference_request.add_input_array(input1_name, &array)?;
+            inference_request.add_input_array(input1_name, array)?;
             inference_request.add_output(output1_name)?;
 
             let infer_response = block_on(executor.execute(&inference_request))?;

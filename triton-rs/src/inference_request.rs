@@ -5,13 +5,11 @@ use std::ffi::CString;
 
 pub struct InferenceRequest {
     ptr: *mut triton_sys::TRITONSERVER_InferenceRequest,
+    #[cfg(feature = "ndarray")]
+    datas: Vec<Vec<u8>>,
 }
 
 impl InferenceRequest {
-    pub fn from_ptr(ptr: *mut triton_sys::TRITONSERVER_InferenceRequest) -> Self {
-        Self { ptr }
-    }
-
     pub fn as_ptr(&self) -> *mut triton_sys::TRITONSERVER_InferenceRequest {
         self.ptr
     }
@@ -26,7 +24,7 @@ impl InferenceRequest {
                 executor.model_version,
             )
         })?;
-        Ok(Self { ptr: request })
+        Ok(Self { ptr: request, datas: Vec::with_capacity(10) })
     }
 
     pub fn add_output(&self, name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -82,14 +80,23 @@ impl InferenceRequest {
     }
 
     #[cfg(feature = "ndarray")]
-    pub fn add_input_array<T>(&self, name: &str, array: &Array<T, IxDyn>,
+    pub fn add_input_array<T>(&mut self, name: &str, array: Array<T, IxDyn>,
     ) -> Result<(), Box<dyn std::error::Error>>
     where T: Copy + crate::data_type::SupportedTypes {
         let shape: Vec<i64> = array.shape().iter().map(|x| *x as i64).collect();
         let data_type = <T as crate::data_type::SupportedTypes>::of();
         assert_eq!(data_type.byte_size() as usize, std::mem::size_of::<T>());
         self.add_input(name, data_type, &shape)?;
-        self.set_input_data(name, get_raw_bytes(array))
+        let is_empty = array.is_empty();
+        let (vec, Some(offset)) = array.into_raw_vec_and_offset() else {
+            assert!(is_empty);
+            return Ok(()); // no data needs be sent
+        };
+        assert_eq!(offset, 0);
+        let vec: Vec<u8> = get_raw_bytes(vec);
+        self.datas.push(vec);
+        let slice: &[u8] = self.datas.last().unwrap();
+        self.set_input_data(name, slice)
     }
 
     pub fn set_request_id(&self, id: &str) -> Result<(), Error> {
@@ -134,11 +141,32 @@ extern "C" fn infer_request_complete(
     }
 }
 
-fn get_raw_bytes<T>(array: &Array<T, IxDyn>) -> &[u8] {
-    let data = array.as_raw_ref();
-    let byte_ptr = data.as_ptr() as *const u8;
-    let byte_len = data.len() * std::mem::size_of::<T>();
-    let data = unsafe { std::slice::from_raw_parts(byte_ptr, byte_len) };
-    let data: &[u8] = unsafe { std::mem::transmute(data) };
-    data
+#[cfg(feature="ndarray")]
+fn get_raw_bytes<T>(mut vec: Vec<T>) -> Vec<u8> {
+    let ratio = std::mem::size_of::<T>() / std::mem::size_of::<u8>();
+    let length = vec.len() * ratio;
+    let capacity = vec.capacity() * ratio;
+    let data = vec.as_mut_ptr() as *mut u8;
+    std::mem::forget(vec); // don't run destructor
+    let vec: Vec<u8> = unsafe { Vec::from_raw_parts(data, length, capacity) };
+    vec
+}
+
+#[test]
+#[cfg(feature="ndarray")]
+fn test_get_raw_bytes() {
+    let data: Vec<u8> = vec![1, 2, 3, 4];
+    assert_eq!(data, get_raw_bytes(data.clone()));
+
+    let data: Vec<i16> = vec![-1, 0, 100];
+    #[cfg(target_endian="little")]
+    assert_eq!(vec![255, 255, 0, 0, 100, 0], get_raw_bytes(data));
+    #[cfg(target_endian="big")]
+    assert_eq!(vec![255, 255, 0, 0, 0, 100], get_raw_bytes(data));
+
+    let data: Vec<f32> = vec![0.0, 1.234, f32::NAN];
+    #[cfg(target_endian="little")]
+    assert_eq!(vec![0,0,0,0, 182,243,157,63, 0,0,192,127], get_raw_bytes(data));
+    #[cfg(target_endian="big")]
+    assert_eq!(vec![0,0,0,0, 63,157,243,182, 127,192,0,0], get_raw_bytes(data));
 }
